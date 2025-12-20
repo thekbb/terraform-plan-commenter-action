@@ -41,7 +41,7 @@ outputs:
     value: ${{ steps.plan.outputs.exitcode == '2' }}
   plan-stdout:
     description: 'Standard output from terraform plan'
-    value: ${{ steps.plan-output.outputs.stdout }}
+    value: ${{ steps.plan.outputs.stdout }}
 
 runs:
   using: 'composite'
@@ -66,21 +66,13 @@ runs:
       continue-on-error: true
       run: |
         set +e
-        terraform plan -no-color -input=false -detailed-exitcode -out=tfplan ${{ inputs.plan-args }}
-        echo "exitcode=$?" >> $GITHUB_OUTPUT
-
-    - name: Capture Plan Output
-      id: plan-output
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: |
+        set -o pipefail
+        terraform plan -no-color -input=false -detailed-exitcode ${{ inputs.plan-args }} 2>&1 | tee /tmp/plan_output.txt
+        exitcode=${PIPESTATUS[0]}
+        echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
         {
           echo 'stdout<<TFPLAN_EOF'
-          if [ ! -f tfplan ]; then
-            echo "Error: Plan file not found"
-          elif ! terraform show -no-color tfplan 2>&1; then
-            echo "Error: Failed to read plan file (exit code: $?)"
-          fi
+          cat /tmp/plan_output.txt
           echo 'TFPLAN_EOF'
         } >> $GITHUB_OUTPUT
 
@@ -88,7 +80,7 @@ runs:
       if: github.event_name == 'pull_request'
       uses: actions/github-script@v8
       env:
-        PLAN: ${{ steps.plan-output.outputs.stdout }}
+        PLAN: ${{ steps.plan.outputs.stdout }}
         PLAN_EXIT_CODE: ${{ steps.plan.outputs.exitcode }}
         WORKING_DIR: ${{ inputs.working-directory }}
       with:
@@ -99,12 +91,6 @@ runs:
           const scriptPath = path.join('${{ github.action_path }}', 'scripts', 'format-comment.cjs');
           const script = require(scriptPath);
           await script({ github, context, core });
-
-    - name: Cleanup Plan File
-      if: always()
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: rm -f tfplan
 
     - name: Check Plan Status
       shell: bash
