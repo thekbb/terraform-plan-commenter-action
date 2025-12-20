@@ -9,6 +9,8 @@ A GitHub Action that runs `terraform plan` and posts a formatted comment to your
 This makes it easy for reviewers (who won't have access to run terraform plan)
 to quickly and easily see what infrastructure changes would be applied by the PR.
 
+![screenshot](images/pr-comment-screenshot.png)
+
 ## Features
 
 **Updates existing comments** instead of creating duplicates
