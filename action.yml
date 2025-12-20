@@ -86,7 +86,7 @@ runs:
 
     - name: Post PR Comment
       if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       env:
         PLAN: ${{ steps.plan-output.outputs.stdout }}
         PLAN_EXIT_CODE: ${{ steps.plan.outputs.exitcode }}
