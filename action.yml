@@ -1,0 +1,111 @@
+name: 'Terraform Plan'
+description: 'Run terraform plan and post a formatted comment to the PR with summary badges'
+author: 'thekbb'
+
+branding:
+  icon: 'git-pull-request'
+  color: 'purple'
+
+inputs:
+  working-directory:
+    description: 'Directory containing Terraform configuration'
+    required: false
+    default: '.'
+  terraform-version:
+    description: 'Terraform version to use'
+    required: false
+    default: 'latest'
+  github-token:
+    description: 'GitHub token for posting PR comments'
+    required: false
+    default: ${{ github.token }}
+  setup-terraform:
+    description: 'Whether to setup Terraform (set to false if already configured)'
+    required: false
+    default: 'true'
+  init-args:
+    description: 'Additional arguments to pass to terraform init'
+    required: false
+    default: ''
+  plan-args:
+    description: 'Additional arguments to pass to terraform plan'
+    required: false
+    default: ''
+
+outputs:
+  plan-exit-code:
+    description: 'Exit code from terraform plan (0=no changes, 1=error, 2=changes)'
+    value: ${{ steps.plan.outputs.exitcode }}
+  has-changes:
+    description: 'Whether the plan has changes (true/false)'
+    value: ${{ steps.plan.outputs.exitcode == '2' }}
+  plan-stdout:
+    description: 'Standard output from terraform plan'
+    value: ${{ steps.plan.outputs.stdout }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Terraform
+      if: inputs.setup-terraform == 'true'
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ inputs.terraform-version }}
+        terraform_wrapper: false  # We capture output ourselves
+
+    - name: Terraform Init
+      id: init
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: terraform init -input=false ${{ inputs.init-args }}
+
+    - name: Terraform Plan
+      id: plan
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      continue-on-error: true
+      run: |
+        set +e
+        terraform plan -no-color -input=false -detailed-exitcode -out=tfplan ${{ inputs.plan-args }}
+        echo "exitcode=$?" >> $GITHUB_OUTPUT
+
+    - name: Capture Plan Output
+      id: plan-output
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        {
+          echo 'stdout<<TFPLAN_EOF'
+          terraform show -no-color tfplan 2>/dev/null || echo "No plan file found"
+          echo 'TFPLAN_EOF'
+        } >> $GITHUB_OUTPUT
+
+    - name: Post PR Comment
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      env:
+        PLAN: ${{ steps.plan-output.outputs.stdout }}
+        PLAN_EXIT_CODE: ${{ steps.plan.outputs.exitcode }}
+        WORKING_DIR: ${{ inputs.working-directory }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          const scriptPath = path.join('${{ github.action_path }}', 'scripts', 'format-comment.js');
+          const script = require(scriptPath);
+          await script({ github, context, core });
+
+    - name: Cleanup Plan File
+      if: always()
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: rm -f tfplan
+
+    - name: Check Plan Status
+      shell: bash
+      run: |
+        if [ "${{ steps.plan.outputs.exitcode }}" == "1" ]; then
+          echo "::error::Terraform plan failed"
+          exit 1
+        fi
