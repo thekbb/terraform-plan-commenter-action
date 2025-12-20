@@ -41,7 +41,7 @@ outputs:
     value: ${{ steps.plan.outputs.exitcode == '2' }}
   plan-stdout:
     description: 'Standard output from terraform plan'
-    value: ${{ steps.plan.outputs.stdout }}
+    value: ${{ steps.plan-output.outputs.stdout }}
 
 runs:
   using: 'composite'

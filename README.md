@@ -73,7 +73,6 @@ jobs:
 ```yaml
 - uses: thekbb/terraform-plan-action@v1
   with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
     terraform-version: '1.14.3'
 ```
 
@@ -82,7 +81,6 @@ jobs:
 ```yaml
 - uses: thekbb/terraform-plan-action@v1
   with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
     working-directory: 'infrastructure/'
 ```
 
@@ -91,7 +89,6 @@ jobs:
 ```yaml
 - uses: thekbb/terraform-plan-action@v1
   with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
     plan-args: '-var-file=prod.tfvars'
 ```
 
@@ -107,7 +104,6 @@ If you're using a matrix or already have Terraform configured:
 
 - uses: thekbb/terraform-plan-action@v1
   with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
     setup-terraform: 'false'
 ```
 
