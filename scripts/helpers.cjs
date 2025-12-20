@@ -32,7 +32,7 @@ const formatSummary = (plan, exitCode) => {
   if (changeMatch) parts.push(`🟡 <strong>update</strong> <code>${changeMatch[1]}</code>`);
   if (destroyMatch) parts.push(`🔴 <strong>destroy</strong> <code>${destroyMatch[1]}</code>`);
 
-  return parts.join(' · ');
+  return parts.join(' · ') + ' — <em>I love it when a plan comes together.</em> 🚬';
 };
 
 /**

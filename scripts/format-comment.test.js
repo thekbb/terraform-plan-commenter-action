@@ -18,13 +18,14 @@ describe('formatSummary', () => {
     expect(result).toBe('❌ Plan failed');
   });
 
-  it('parses add/change/destroy counts', () => {
+  it('parses add/change/destroy counts with success message', () => {
     const plan = 'Plan: 3 to add, 1 to change, 2 to destroy.';
     const result = formatSummary(plan, '2');
     expect(result).toBe(
       '🟢 <strong>create</strong> <code>3</code> · ' +
       '🟡 <strong>update</strong> <code>1</code> · ' +
-      '🔴 <strong>destroy</strong> <code>2</code>'
+      '🔴 <strong>destroy</strong> <code>2</code>' +
+      ' — <em>I love it when a plan comes together.</em> 🚬'
     );
   });
 
