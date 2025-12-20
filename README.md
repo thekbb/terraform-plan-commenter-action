@@ -1,7 +1,7 @@
-# Terraform Plan Action
+# Terraform Plan Comment Action
 
-[![CI](https://github.com/thekbb/terraform-plan-action/actions/workflows/test.yml/badge.svg)](https://github.com/thekbb/terraform-plan-action/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/thekbb/terraform-plan-action/branch/main/graph/badge.svg)](https://codecov.io/gh/thekbb/terraform-plan-action)
+[![CI](https://github.com/thekbb/terraform-plan-comment-action/actions/workflows/test.yml/badge.svg)](https://github.com/thekbb/terraform-plan-comment-action/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/thekbb/terraform-plan-comment-action/branch/main/graph/badge.svg)](https://codecov.io/gh/thekbb/terraform-plan-comment-action)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A GitHub Action that runs `terraform plan` and posts a formatted comment to your pull request.
@@ -44,7 +44,7 @@ jobs:
           aws-region: us-east-2
 
       # Run the plan
-      - uses: thekbb/terraform-plan-action@v1
+      - uses: thekbb/terraform-plan-comment-action@v1
 ```
 
 ## Inputs
@@ -71,7 +71,7 @@ jobs:
 ### Specific Terraform Version
 
 ```yaml
-- uses: thekbb/terraform-plan-action@v1
+- uses: thekbb/terraform-plan-comment-action@v1
   with:
     terraform-version: '1.14.3'
 ```
@@ -79,7 +79,7 @@ jobs:
 ### Subdirectory / Monorepo
 
 ```yaml
-- uses: thekbb/terraform-plan-action@v1
+- uses: thekbb/terraform-plan-comment-action@v1
   with:
     working-directory: 'infrastructure/'
 ```
@@ -87,7 +87,7 @@ jobs:
 ### Var Files
 
 ```yaml
-- uses: thekbb/terraform-plan-action@v1
+- uses: thekbb/terraform-plan-comment-action@v1
   with:
     plan-args: '-var-file=prod.tfvars'
 ```
@@ -102,7 +102,7 @@ If you're using a matrix or already have Terraform configured:
     terraform_version: '1.14.3'
     terraform_wrapper: false  # Important if capturing output
 
-- uses: thekbb/terraform-plan-action@v1
+- uses: thekbb/terraform-plan-comment-action@v1
   with:
     setup-terraform: 'false'
 ```
@@ -129,7 +129,7 @@ The action posts a comment like this:
 For strict environments, pin to a full semantic version or full SHA:
 
 ```yaml
-uses: thekbb/terraform-plan-action@<full-commit-sha>
+uses: thekbb/terraform-plan-comment-action@<full-commit-sha>
 ```
 
 ## Contributing

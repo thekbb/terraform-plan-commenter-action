@@ -6,8 +6,8 @@ Thanks for your interest in contributing!
 
 ```bash
 # Clone the repo
-git clone https://github.com/thekbb/terraform-plan-action.git
-cd terraform-plan-action
+git clone https://github.com/thekbb/terraform-plan-comment-action.git
+cd terraform-plan-comment-action
 
 # Install dependencies
 npm install

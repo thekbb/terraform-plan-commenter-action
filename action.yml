@@ -1,4 +1,4 @@
-name: 'Terraform Plan'
+name: 'Terraform Plan Comment'
 description: 'Run terraform plan and post a formatted comment to the PR with summary badges'
 author: 'thekbb'
 
