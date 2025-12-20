@@ -5,6 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A GitHub Action that runs `terraform plan` and posts a formatted comment to your pull request.
+Subsequent pushes to the PR's branch will update the existing comment with the latest plan.
 
 This makes it easy for reviewers (who won't have access to run terraform plan)
 to quickly and easily see what infrastructure changes would be applied by the PR.
