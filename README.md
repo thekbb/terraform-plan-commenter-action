@@ -6,13 +6,16 @@
 
 A GitHub Action that runs `terraform plan` and posts a formatted comment to your pull request.
 
+This makes it easy for reviewers (who won't have access to run terraform plan)
+to quickly and easily see what infrastructure changes would be applied by the PR.
+
 ## Features
 
-- 🔄 **Updates existing comments** instead of creating duplicates
-- 📦 **Collapsible sections** for state refresh output
-- ✂️ **Handles large plans** gracefully with truncation
-- 🔵 **Import support** — shows import counts in summary
-- 📁 **Multi-directory support** via `working-directory` input
+**Updates existing comments** instead of creating duplicates
+**Collapsible sections** for state refresh output
+**Handles large plans** gracefully with truncation
+**Import support** — shows import counts in summary
+**Multi-directory support** via `working-directory` input (for mono repos)
 
 ## Usage
 
@@ -59,7 +62,7 @@ jobs:
 
 | Output | Description |
 | ------ | ----------- |
-| `plan-exit-code` | Exit code from terraform plan (0=no changes, 1=error, 2=changes) |
+| `plan-exit-code` | Exit code from terraform plan (`0`=no changes, `1`=error, `2`=changes) |
 | `has-changes` | Whether the plan has changes (`true`/`false`) |
 | `plan-stdout` | Standard output from terraform plan |
 
@@ -127,7 +130,7 @@ The action posts a comment like this:
 
 ## Security
 
-For strict environments, pin to a full SHA:
+For strict environments, pin to a full semantic version or full SHA:
 
 ```yaml
 uses: thekbb/terraform-plan-action@<full-commit-sha>
@@ -136,7 +139,3 @@ uses: thekbb/terraform-plan-action@<full-commit-sha>
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
-
-## License
-
-MIT
