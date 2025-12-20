@@ -1,5 +1,5 @@
 {
-  "name": "terraform-plan-comment-action",
+  "name": "terraform-plan-commenter-action",
   "version": "1.0.0",
   "private": true,
   "type": "module",

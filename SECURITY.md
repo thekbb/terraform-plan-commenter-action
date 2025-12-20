@@ -9,7 +9,7 @@
 ## Reporting a Vulnerability
 
 If you discover a security vulnerability, please
-[email us](mailto:security@thekbb.net?subject=terraform-plan-comment-action%20security%20concern)
+[email us](mailto:security@thekbb.net?subject=terraform-plan-commenter-action%20security%20concern)
 instead of opening a public issue.
 
 We'll respond within 48 hours and work with you to understand and address the issue.
@@ -26,5 +26,5 @@ This action:
 For strict environments, pin to a full SHA:
 
 ```yaml
-uses: thekbb/terraform-plan-comment-action@<full-commit-sha>
+uses: thekbb/terraform-plan-commenter-action@<full-commit-sha>
 ```
