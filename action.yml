@@ -76,13 +76,17 @@ runs:
       run: |
         {
           echo 'stdout<<TFPLAN_EOF'
-          terraform show -no-color tfplan 2>/dev/null || echo "No plan file found"
+          if [ ! -f tfplan ]; then
+            echo "Error: Plan file not found"
+          elif ! terraform show -no-color tfplan 2>&1; then
+            echo "Error: Failed to read plan file (exit code: $?)"
+          fi
           echo 'TFPLAN_EOF'
         } >> $GITHUB_OUTPUT
 
     - name: Post PR Comment
       if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       env:
         PLAN: ${{ steps.plan-output.outputs.stdout }}
         PLAN_EXIT_CODE: ${{ steps.plan.outputs.exitcode }}
@@ -92,7 +96,7 @@ runs:
         script: |
           const fs = require('fs');
           const path = require('path');
-          const scriptPath = path.join('${{ github.action_path }}', 'scripts', 'format-comment.js');
+          const scriptPath = path.join('${{ github.action_path }}', 'scripts', 'format-comment.cjs');
           const script = require(scriptPath);
           await script({ github, context, core });
 
