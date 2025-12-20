@@ -96,7 +96,7 @@ runs:
         script: |
           const fs = require('fs');
           const path = require('path');
-          const scriptPath = path.join('${{ github.action_path }}', 'scripts', 'format-comment.js');
+          const scriptPath = path.join('${{ github.action_path }}', 'scripts', 'format-comment.cjs');
           const script = require(scriptPath);
           await script({ github, context, core });
 
