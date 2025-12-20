@@ -28,22 +28,6 @@ npm run lint:md
 npm run lint:fix
 ```
 
-## Project Structure
-
-```text
-terraform-plan-action/
-├── action.yml              # Action definition
-├── scripts/
-│   ├── helpers.cjs         # Exported helper functions
-│   ├── format-comment.js   # Main script (used by github-script)
-│   └── format-comment.test.js
-├── .github/
-│   └── workflows/
-│       └── test.yml        # CI workflow
-├── package.json
-└── eslint.config.js
-```
-
 ## Running Tests
 
 ```bash
@@ -54,11 +38,11 @@ npm run test:watch          # Watch mode
 ## Making Changes
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-change`)
-3. Make your changes
-4. Run tests and lint (`npm test && npm run lint`)
-5. Commit with a descriptive message
-6. Push and open a PR
+1. Create a feature branch (`git checkout -b feature/my-change`)
+1. Make your changes
+1. Run tests and lint (`npm test && npm run lint`)
+1. Commit with a descriptive message
+1. Push and open a PR
 
 ## No Build Step Required
 

@@ -76,7 +76,11 @@ runs:
       run: |
         {
           echo 'stdout<<TFPLAN_EOF'
-          terraform show -no-color tfplan 2>/dev/null || echo "No plan file found"
+          if [ ! -f tfplan ]; then
+            echo "Error: Plan file not found"
+          elif ! terraform show -no-color tfplan 2>&1; then
+            echo "Error: Failed to read plan file (exit code: $?)"
+          fi
           echo 'TFPLAN_EOF'
         } >> $GITHUB_OUTPUT
 
