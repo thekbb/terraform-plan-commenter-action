@@ -1,12 +1,20 @@
 // Helper functions for formatting Terraform plan output (CommonJS for github-script)
 
+/** Available emoji themes */
+const THEMES = {
+  default: { import: '🔵', create: '🟢', update: '🟡', destroy: '🔴' },
+  colorblind: { import: '📥', create: '➕', update: '✏️', destroy: '➖' },
+  minimal: { import: '[import]', create: '[create]', update: '[update]', destroy: '[destroy]' }
+};
+
 /**
  * Format summary with emoji badges
  * @param {string} plan - The terraform plan output
  * @param {string} exitCode - Exit code from terraform plan ('0', '1', or '2')
+ * @param {string} theme - Theme name ('default', 'colorblind', 'minimal')
  * @returns {string} Formatted summary string
  */
-const formatSummary = (plan, exitCode) => {
+const formatSummary = (plan, exitCode, theme = 'default') => {
   // Check for no changes
   if (exitCode === '0' || plan.includes('No changes.')) {
     return '✅ No changes';
@@ -16,6 +24,8 @@ const formatSummary = (plan, exitCode) => {
   if (exitCode === '1') {
     return '❌ Plan failed';
   }
+
+  const emojis = THEMES[theme] || THEMES.default;
 
   const addMatch = plan.match(/(\d+) to add/);
   const changeMatch = plan.match(/(\d+) to change/);
@@ -27,12 +37,12 @@ const formatSummary = (plan, exitCode) => {
   }
 
   const parts = [];
-  if (importMatch) parts.push(`🔵 <strong>import</strong> <code>${importMatch[1]}</code>`);
-  if (addMatch) parts.push(`🟢 <strong>create</strong> <code>${addMatch[1]}</code>`);
-  if (changeMatch) parts.push(`🟡 <strong>update</strong> <code>${changeMatch[1]}</code>`);
-  if (destroyMatch) parts.push(`🔴 <strong>destroy</strong> <code>${destroyMatch[1]}</code>`);
+  if (importMatch) parts.push(`${emojis.import} <strong>import</strong> <code>${importMatch[1]}</code>`);
+  if (addMatch) parts.push(`${emojis.create} <strong>create</strong> <code>${addMatch[1]}</code>`);
+  if (changeMatch) parts.push(`${emojis.update} <strong>update</strong> <code>${changeMatch[1]}</code>`);
+  if (destroyMatch) parts.push(`${emojis.destroy} <strong>destroy</strong> <code>${destroyMatch[1]}</code>`);
 
-  return parts.join(' · ') + ' — <em>I love it when a plan comes together.</em> 🚬';
+  return parts.join(' · ');
 };
 
 /**
@@ -53,4 +63,4 @@ const splitPlan = (plan) => {
 /** Comment marker for identifying bot comments */
 const MARKER = '<!-- terraform-plan-comment -->';
 
-module.exports = { formatSummary, splitPlan, MARKER };
+module.exports = { formatSummary, splitPlan, MARKER, THEMES };

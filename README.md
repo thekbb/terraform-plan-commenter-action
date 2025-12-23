@@ -14,11 +14,12 @@ to quickly and easily see what infrastructure changes would be applied by the PR
 
 ## Features
 
-**Updates existing comments** instead of creating duplicates
-**Collapsible sections** for state refresh output
-**Handles large plans** gracefully with truncation
-**Import support** — shows import counts in summary
-**Multi-directory support** via `working-directory` input (for mono repos)
+- **Updates existing comments** instead of creating duplicates
+- **Collapsible sections** for state refresh output
+- **Handles large plans** gracefully with truncation
+- **Import support** — shows import counts in summary
+- **Multi-directory support** via `working-directory` input (for mono repos)
+- **Accessibility themes** — colorblind-friendly emoji options
 
 ## Usage
 
@@ -60,6 +61,7 @@ jobs:
 | `setup-terraform` | Whether to setup Terraform (set `false` if already configured) | No | `true` |
 | `init-args` | Additional arguments for `terraform init` | No | `''` |
 | `plan-args` | Additional arguments for `terraform plan` | No | `''` |
+| `summary-theme` | Emoji theme: `default`, `colorblind`, or `minimal` | No | `default` |
 
 ## Outputs
 
@@ -109,6 +111,22 @@ If you're using a matrix or already have Terraform configured:
   with:
     setup-terraform: 'false'
 ```
+
+### Colorblind-Friendly Theme
+
+```yaml
+- uses: thekbb/terraform-plan-commenter-action@v1
+  with:
+    summary-theme: 'colorblind'
+```
+
+Available themes:
+
+| Theme | Import | Create | Update | Destroy |
+| ----- | ------ | ------ | ------ | ------- |
+| `default` | 🔵 | 🟢 | 🟡 | 🔴 |
+| `colorblind` | 📥 | ➕ | ✏️ | ➖ |
+| `minimal` | [import] | [create] | [update] | [destroy] |
 
 ## PR Comment Preview
 

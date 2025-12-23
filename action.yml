@@ -31,6 +31,10 @@ inputs:
     description: 'Additional arguments to pass to terraform plan'
     required: false
     default: ''
+  summary-theme:
+    description: 'Emoji theme for summary: default, colorblind, or minimal'
+    required: false
+    default: 'default'
 
 outputs:
   plan-exit-code:
@@ -83,6 +87,7 @@ runs:
         PLAN: ${{ steps.plan.outputs.stdout }}
         PLAN_EXIT_CODE: ${{ steps.plan.outputs.exitcode }}
         WORKING_DIR: ${{ inputs.working-directory }}
+        SUMMARY_THEME: ${{ inputs.summary-theme }}
       with:
         github-token: ${{ inputs.github-token }}
         script: |
