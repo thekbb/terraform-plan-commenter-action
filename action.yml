@@ -71,6 +71,10 @@ runs:
       run: |
         set +e
         set -o pipefail
+        # Capture workspace
+        workspace=$(terraform workspace show)
+        echo "workspace=$workspace" >> $GITHUB_OUTPUT
+        # Run plan
         terraform plan -no-color -input=false -detailed-exitcode ${{ inputs.plan-args }} 2>&1 | tee /tmp/plan_output.txt
         exitcode=${PIPESTATUS[0]}
         echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
@@ -87,6 +91,7 @@ runs:
         PLAN: ${{ steps.plan.outputs.stdout }}
         PLAN_EXIT_CODE: ${{ steps.plan.outputs.exitcode }}
         WORKING_DIR: ${{ inputs.working-directory }}
+        TF_WORKSPACE: ${{ steps.plan.outputs.workspace }}
         SUMMARY_THEME: ${{ inputs.summary-theme }}
       with:
         github-token: ${{ inputs.github-token }}
