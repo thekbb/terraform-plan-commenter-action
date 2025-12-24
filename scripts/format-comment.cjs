@@ -5,10 +5,15 @@ module.exports = async ({ github, context, core }) => {
   const plan = process.env.PLAN || '';
   const exitCode = process.env.PLAN_EXIT_CODE || '0';
   const workingDir = process.env.WORKING_DIR || '.';
+  const theme = process.env.SUMMARY_THEME || 'default';
 
   try {
-    const summary = formatSummary(plan, exitCode);
+    const summary = formatSummary(plan, exitCode, theme);
     const { refresh, changes } = splitPlan(plan);
+
+    if (exitCode === '2') {
+      core.info('I love it when a plan comes together.');
+    }
 
     // Build plan content with collapsible refresh section
     const planContent = refresh

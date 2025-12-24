@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatSummary, splitPlan, MARKER } from './helpers.cjs';
+import { formatSummary, splitPlan, MARKER, THEMES } from './helpers.cjs';
 
 describe('formatSummary', () => {
   it('returns no changes for exit code 0', () => {
@@ -18,14 +18,13 @@ describe('formatSummary', () => {
     expect(result).toBe('❌ Plan failed');
   });
 
-  it('parses add/change/destroy counts with success message', () => {
+  it('parses add/change/destroy counts', () => {
     const plan = 'Plan: 3 to add, 1 to change, 2 to destroy.';
     const result = formatSummary(plan, '2');
     expect(result).toBe(
       '🟢 <strong>create</strong> <code>3</code> · ' +
       '🟡 <strong>update</strong> <code>1</code> · ' +
-      '🔴 <strong>destroy</strong> <code>2</code>' +
-      ' — <em>I love it when a plan comes together.</em> 🚬'
+      '🔴 <strong>destroy</strong> <code>2</code>'
     );
   });
 
@@ -62,6 +61,57 @@ describe('formatSummary', () => {
     expect(result).toContain('<code>100</code>');
     expect(result).toContain('<code>50</code>');
     expect(result).toContain('<code>25</code>');
+  });
+
+  it('uses colorblind theme', () => {
+    const plan = 'Plan: 1 to add, 1 to change, 1 to destroy.';
+    const result = formatSummary(plan, '2', 'colorblind');
+    expect(result).toContain('➕ <strong>create</strong>');
+    expect(result).toContain('✏️ <strong>update</strong>');
+    expect(result).toContain('➖ <strong>destroy</strong>');
+  });
+
+  it('uses minimal theme', () => {
+    const plan = 'Plan: 1 to add, 1 to change, 1 to destroy.';
+    const result = formatSummary(plan, '2', 'minimal');
+    expect(result).toContain('[create] <strong>create</strong>');
+    expect(result).toContain('[update] <strong>update</strong>');
+    expect(result).toContain('[destroy] <strong>destroy</strong>');
+  });
+
+  it('falls back to default for unknown theme', () => {
+    const plan = 'Plan: 1 to add, 0 to change, 0 to destroy.';
+    const result = formatSummary(plan, '2', 'nonexistent');
+    expect(result).toContain('🟢 <strong>create</strong>');
+  });
+});
+
+describe('THEMES', () => {
+  it('has default theme with colored emojis', () => {
+    expect(THEMES.default).toEqual({
+      import: '🔵',
+      create: '🟢',
+      update: '🟡',
+      destroy: '🔴'
+    });
+  });
+
+  it('has colorblind theme with shape-based emojis', () => {
+    expect(THEMES.colorblind).toEqual({
+      import: '📥',
+      create: '➕',
+      update: '✏️',
+      destroy: '➖'
+    });
+  });
+
+  it('has minimal theme with text labels', () => {
+    expect(THEMES.minimal).toEqual({
+      import: '[import]',
+      create: '[create]',
+      update: '[update]',
+      destroy: '[destroy]'
+    });
   });
 });
 
