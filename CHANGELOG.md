@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `default`: Colored circle emojis (🔵🟢🟡🔴)
   - `colorblind`: Shape-based icons (📥➕✏️➖)
   - `minimal`: Text labels (`[import]`, `[create]`, `[update]`, `[destroy]`)
+- **Terraform workspaces support**, works with multiple Terraform workspaces (dev/staging/prod) in the same PR
+
+### Changed
+
+- **Comment markers now unique per workspace and directory** for safe concurrent runs
+  - Enables monorepos to run plans in multiple directories simultaneously
+  - Each workspace/directory combination maintains its own independent comment
 
 ## [1.0.0] - 2024-12-20
 

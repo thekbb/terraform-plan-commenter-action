@@ -19,6 +19,8 @@ to quickly and easily see what infrastructure changes would be applied by the PR
 - **Handles large plans** gracefully with truncation
 - **Import support** — shows import counts in summary
 - **Multi-directory support** via `working-directory` input (for mono repos)
+- **Terraform workspace support** — works with multiple workspaces (dev/staging/prod)
+- **Safe concurrent runs** — unique comments per workspace/directory combination
 - **Accessibility themes** — colorblind-friendly emoji options
 
 ## Usage
@@ -127,6 +129,54 @@ Available themes:
 | `default` | 🔵 | 🟢 | 🟡 | 🔴 |
 | `colorblind` | 📥 | ➕ | ✏️ | ➖ |
 | `minimal` | [import] | [create] | [update] | [destroy] |
+
+## Workspaces & Concurrent Runs
+
+The action automatically detects your Terraform workspace and supports concurrent runs:
+
+- **Workspaces**: Detects the current workspace (via `terraform workspace show`) and creates separate comments for
+  each workspace (dev/staging/prod)
+- **Monorepos**: Each `working-directory` gets its own independent comment
+- **Concurrent runs**: Matrix builds or parallel jobs running different workspace/directory combinations maintain
+  separate comments
+
+### Running in a specific workspace
+
+Select the workspace before running the action:
+
+```yaml
+- name: Select Terraform workspace
+  run: terraform workspace select staging || terraform workspace new staging
+  working-directory: ./infrastructure
+
+- uses: thekbb/terraform-plan-commenter-action@v1
+  with:
+    working-directory: ./infrastructure
+```
+
+### Matrix example (multiple workspaces)
+
+```yaml
+strategy:
+  matrix:
+    workspace: [dev, staging, prod]
+
+steps:
+  - uses: actions/checkout@v6
+
+  - name: Configure AWS
+    uses: aws-actions/configure-aws-credentials@v5
+    with:
+      role-to-assume: arn:aws:iam::123456789:role/terraform-${{ matrix.workspace }}
+      aws-region: us-east-1
+
+  - name: Select workspace
+    run: terraform workspace select ${{ matrix.workspace }} || terraform workspace new ${{ matrix.workspace }}
+
+  - uses: thekbb/terraform-plan-commenter-action@v1
+```
+
+Each workspace gets its own independent PR comment that updates separately!
 
 ## PR Comment Preview
 

@@ -1,10 +1,11 @@
 // Format and post/update Terraform plan as PR comment
-const { formatSummary, splitPlan, MARKER } = require('./helpers.cjs');
+const { formatSummary, splitPlan, makeMarker } = require('./helpers.cjs');
 
 module.exports = async ({ github, context, core }) => {
   const plan = process.env.PLAN || '';
   const exitCode = process.env.PLAN_EXIT_CODE || '0';
   const workingDir = process.env.WORKING_DIR || '.';
+  const workspace = process.env.TF_WORKSPACE || 'default';
   const theme = process.env.SUMMARY_THEME || 'default';
 
   try {
@@ -14,6 +15,9 @@ module.exports = async ({ github, context, core }) => {
     if (exitCode === '2') {
       core.info('I love it when a plan comes together.');
     }
+
+    // Generate unique marker for this workspace/directory
+    const marker = makeMarker(workingDir, workspace);
 
     // Build plan content with collapsible refresh section
     const planContent = refresh
@@ -35,7 +39,7 @@ module.exports = async ({ github, context, core }) => {
     const dirNote = workingDir !== '.' ? `\n📁 \`${workingDir}\`\n` : '';
 
     const output = [
-      MARKER,
+      marker,
       '### Terraform Plan',
       dirNote,
       `<details><summary>${summary || 'Show Plan'}</summary>`,
@@ -56,7 +60,7 @@ module.exports = async ({ github, context, core }) => {
       });
 
       const botComment = comments.find(comment =>
-        comment.user.type === 'Bot' && comment.body.includes(MARKER)
+        comment.user.type === 'Bot' && comment.body.includes(marker)
       );
 
       if (botComment) {
@@ -79,7 +83,7 @@ module.exports = async ({ github, context, core }) => {
     if (output.length > 65000) {
       const runUrl = `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
       const truncated = [
-        MARKER,
+        marker,
         '### Terraform Plan',
         dirNote,
         `⚠️ Plan output is too large for GitHub comment (${output.length.toLocaleString()} chars).`,

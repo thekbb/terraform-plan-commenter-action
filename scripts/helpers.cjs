@@ -60,7 +60,16 @@ const splitPlan = (plan) => {
   };
 };
 
-/** Comment marker for identifying bot comments */
-const MARKER = '<!-- terraform-plan-comment -->';
+/**
+ * Generate unique comment marker for identifying bot comments
+ * @param {string} workingDir - Working directory path
+ * @param {string} workspace - Terraform workspace name
+ * @returns {string} Unique HTML comment marker
+ */
+const makeMarker = (workingDir = '.', workspace = 'default') => {
+  // Normalize path for consistency
+  const normalizedDir = workingDir === '.' ? 'root' : workingDir.replace(/\//g, '-');
+  return `<!-- terraform-plan-comment:${normalizedDir}:${workspace} -->`;
+};
 
-module.exports = { formatSummary, splitPlan, MARKER, THEMES };
+module.exports = { formatSummary, splitPlan, makeMarker, THEMES };

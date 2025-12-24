@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatSummary, splitPlan, MARKER, THEMES } from './helpers.cjs';
+import { formatSummary, splitPlan, makeMarker, THEMES } from './helpers.cjs';
 
 describe('formatSummary', () => {
   it('returns no changes for exit code 0', () => {
@@ -150,8 +150,30 @@ Plan: 0 to add, 0 to change, 0 to destroy.`;
   });
 });
 
-describe('MARKER', () => {
-  it('is an HTML comment', () => {
-    expect(MARKER).toMatch(/^<!--.*-->$/);
+describe('makeMarker', () => {
+  it('generates unique markers for different directories', () => {
+    const marker1 = makeMarker('.', 'default');
+    const marker2 = makeMarker('infrastructure', 'default');
+    expect(marker1).not.toBe(marker2);
+    expect(marker1).toBe('<!-- terraform-plan-comment:root:default -->');
+    expect(marker2).toBe('<!-- terraform-plan-comment:infrastructure:default -->');
+  });
+
+  it('generates unique markers for different workspaces', () => {
+    const marker1 = makeMarker('.', 'default');
+    const marker2 = makeMarker('.', 'staging');
+    expect(marker1).not.toBe(marker2);
+    expect(marker1).toBe('<!-- terraform-plan-comment:root:default -->');
+    expect(marker2).toBe('<!-- terraform-plan-comment:root:staging -->');
+  });
+
+  it('normalizes directory paths', () => {
+    const marker = makeMarker('infra/terraform/prod', 'default');
+    expect(marker).toBe('<!-- terraform-plan-comment:infra-terraform-prod:default -->');
+  });
+
+  it('returns valid HTML comment', () => {
+    const marker = makeMarker('.', 'default');
+    expect(marker).toMatch(/^<!--.*-->$/);
   });
 });
