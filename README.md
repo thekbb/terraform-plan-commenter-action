@@ -134,9 +134,11 @@ Available themes:
 
 The action automatically detects your Terraform workspace and supports concurrent runs:
 
-- **Workspaces**: Detects the current workspace (via `terraform workspace show`) and creates separate comments for each workspace (dev/staging/prod)
+- **Workspaces**: Detects the current workspace (via `terraform workspace show`) and creates separate comments for
+  each workspace (dev/staging/prod)
 - **Monorepos**: Each `working-directory` gets its own independent comment
-- **Concurrent runs**: Matrix builds or parallel jobs running different workspace/directory combinations maintain separate comments
+- **Concurrent runs**: Matrix builds or parallel jobs running different workspace/directory combinations maintain
+  separate comments
 
 ### Running in a specific workspace
 
