@@ -51,6 +51,10 @@ module.exports = async ({ github, context, core }) => {
       `*Pusher: @${context.actor}, Action: \`${context.eventName}\`*`
     ].join('\n');
 
+    // GitHub's comment limit is 65,536 characters
+    // We use 65,000 as a safety buffer to account for markdown rendering
+    const GITHUB_COMMENT_LIMIT = 65000;
+
     // Handle truncation for large plans
     const postComment = async (body) => {
       const { data: comments } = await github.rest.issues.listComments({
@@ -80,7 +84,34 @@ module.exports = async ({ github, context, core }) => {
       }
     };
 
-    if (output.length > 65000) {
+    // If output is too large, try dropping state refresh first (it's less critical than the plan)
+    if (output.length > GITHUB_COMMENT_LIMIT) {
+      if (refresh) {
+        // Try without refresh section
+        const outputWithoutRefresh = [
+          marker,
+          '### Terraform Plan',
+          dirNote,
+          `<details><summary>${summary || 'Show Plan'}</summary>`,
+          '',
+          '```terraform',
+          changes,
+          '```',
+          '',
+          '</details>',
+          '',
+          '_State refresh output omitted due to size._',
+          '',
+          `*Pusher: @${context.actor}, Action: \`${context.eventName}\`*`
+        ].join('\n');
+
+        if (outputWithoutRefresh.length <= GITHUB_COMMENT_LIMIT) {
+          await postComment(outputWithoutRefresh);
+          return;
+        }
+      }
+
+      // Still too large even without refresh - show truncated message
       const runUrl = `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
       const truncated = [
         marker,
