@@ -14,14 +14,13 @@ to quickly and easily see what infrastructure changes would be applied by the PR
 
 ## Features
 
-- **Updates existing comments** instead of creating duplicates
-- **Collapsible sections** for state refresh output
-- **Handles large plans** gracefully with truncation
-- **Import support** — shows import counts in summary
-- **Multi-directory support** via `working-directory` input (for mono repos)
-- **Terraform workspace support** — works with multiple workspaces (dev/staging/prod)
-- **Safe concurrent runs** — unique comments per workspace/directory combination
-- **Accessibility themes** — colorblind-friendly emoji options
+- Updates existing comments instead of creating duplicates
+- Collapsible sections for plan output and state refresh output
+- handles large plans gracefully-ish with truncation
+- Shows plan summary, count of import/create/update/destroy
+- Multi-directory support via `working-directory` input (for mono repos)
+- Terraform workspace support - works with multiple workspaces (dev/staging/prod)
+- Accessibility themes - colorblind-friendly emoji options
 
 ## Usage
 
@@ -50,6 +49,7 @@ jobs:
           aws-region: us-east-2
 
       # Run the plan
+      # There are semantic versions (`v1.1.15`), `v1` will _always_ point to the latest `1.x.x`.
       - uses: thekbb/terraform-plan-commenter-action@v1
 ```
 
@@ -74,6 +74,21 @@ jobs:
 | `plan-stdout` | Standard output from terraform plan |
 
 ## Examples
+
+### Concurrency
+
+Though Terraform state locking will keep you safe from concurrent runs, It's possible that
+Multiple commits in the same PR, or multiple PRs may collide with each other or a Terraform apply in a different GitHub
+action - which may require manually unlocking terraform state.
+
+You should use GitHub actions concurrency to queue up jobs. You'll need to get fancier
+if you have multiple workspaces, or a matrix setup - action inputs and matrix values will help make the group name.
+
+```yaml
+concurrency:
+  group: terraform
+  cancel-in-progress: false
+```
 
 ### Specific Terraform Version
 
@@ -130,14 +145,14 @@ Available themes:
 | `colorblind` | 📥 | ➕ | ✏️ | ➖ |
 | `minimal` | [import] | [create] | [update] | [destroy] |
 
-## Workspaces & Concurrent Runs
+## Workspaces
 
-The action automatically detects your Terraform workspace and supports concurrent runs:
+The action automatically detects your Terraform workspace:
 
 - **Workspaces**: Detects the current workspace (via `terraform workspace show`) and creates separate comments for
   each workspace (dev/staging/prod)
 - **Monorepos**: Each `working-directory` gets its own independent comment
-- **Concurrent runs**: Matrix builds or parallel jobs running different workspace/directory combinations maintain
+- **Matrix builds**: Jobs running different workspace/directory combinations maintain
   separate comments
 
 ### Running in a specific workspace
@@ -188,7 +203,7 @@ The action posts a comment like this:
 > 🟡 <b>update</b> <code>1</code> · 🔴 <b>destroy</b> <code>0</code></summary>
 >
 > ```terraform
-> Terraform used the selected providers to generate the following execution plan...
+> Terraform used the selected providers to generate the following execution plan:
 > ```
 >
 > </details>
@@ -198,6 +213,12 @@ The action posts a comment like this:
 ## Security
 
 For strict environments, pin to a full semantic version or full SHA:
+
+```yaml
+uses: thekbb/terraform-plan-commenter-action@v1.1.15
+```
+
+or
 
 ```yaml
 uses: thekbb/terraform-plan-commenter-action@<full-commit-sha>
