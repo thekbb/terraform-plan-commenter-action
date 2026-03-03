@@ -52,7 +52,7 @@ runs:
   steps:
     - name: Setup Terraform
       if: inputs.setup-terraform == 'true'
-      uses: hashicorp/setup-terraform@v3
+      uses: hashicorp/setup-terraform@v4
       with:
         terraform_version: ${{ inputs.terraform-version }}
         terraform_wrapper: false  # We capture output ourselves
