@@ -13,7 +13,7 @@
   "devDependencies": {
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^9.39.2",
-    "markdownlint-cli": "^0.47.0",
+    "markdownlint-cli": "^0.48.0",
     "vitest": "^4.0.16"
   }
 }
