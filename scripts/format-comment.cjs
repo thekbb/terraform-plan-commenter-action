@@ -57,11 +57,14 @@ module.exports = async ({ github, context, core }) => {
 
     // Handle truncation for large plans
     const postComment = async (body) => {
-      const { data: comments } = await github.rest.issues.listComments({
+      const listCommentsParams = {
         owner: context.repo.owner,
         repo: context.repo.repo,
         issue_number: context.issue.number,
-      });
+      };
+      const comments = typeof github.paginate === 'function'
+        ? await github.paginate(github.rest.issues.listComments, listCommentsParams)
+        : (await github.rest.issues.listComments(listCommentsParams)).data;
 
       const botComment = comments.find(comment =>
         comment.user.type === 'Bot' && comment.body.includes(marker)

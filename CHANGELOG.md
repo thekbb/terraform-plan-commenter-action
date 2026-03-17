@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mark `init-args` and `plan-args` as trusted-only configuration in action metadata and security documentation
 - Refresh workflow examples.
 - Move CI and package metadata to Node.js 24
+- Use GitHub comment pagination when looking up existing PR comments
+
+### Added
+
+- Coverage for PR comment create/update, truncation, pagination, and API failure handling in `format-comment.cjs`
 
 ## [1.1.0] - 2024-12-23
 
