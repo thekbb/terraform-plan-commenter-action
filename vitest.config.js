@@ -10,7 +10,6 @@ export default defineConfig({
       include: ['scripts/**/*.cjs', 'scripts/**/*.js'],
       exclude: [
         'scripts/**/*.test.js',
-        'scripts/format-comment.cjs', // GitHub API glue code, not unit-testable
       ],
     },
   },
