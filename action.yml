@@ -24,11 +24,11 @@ inputs:
     required: false
     default: 'true'
   init-args:
-    description: 'Additional arguments to pass to terraform init'
+    description: 'Trusted-only additional arguments for terraform init'
     required: false
     default: ''
   plan-args:
-    description: 'Additional arguments to pass to terraform plan'
+    description: 'Trusted-only additional arguments for terraform plan'
     required: false
     default: ''
   summary-theme:
@@ -61,13 +61,17 @@ runs:
       id: init
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: terraform init -input=false ${{ inputs.init-args }}
+      env:
+        TF_CLI_ARGS_init: ${{ inputs.init-args }}
+      run: terraform init -input=false
 
     - name: Terraform Plan
       id: plan
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       continue-on-error: true
+      env:
+        TF_CLI_ARGS_plan: ${{ inputs.plan-args }}
       run: |
         set +e
         set -o pipefail
@@ -75,7 +79,7 @@ runs:
         workspace=$(terraform workspace show)
         echo "workspace=$workspace" >> $GITHUB_OUTPUT
         # Run plan
-        terraform plan -no-color -input=false -detailed-exitcode ${{ inputs.plan-args }} 2>&1 | tee /tmp/plan_output.txt
+        terraform plan -no-color -input=false -detailed-exitcode 2>&1 | tee /tmp/plan_output.txt
         exitcode=${PIPESTATUS[0]}
         echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
         {
