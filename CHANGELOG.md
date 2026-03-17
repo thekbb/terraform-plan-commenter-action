@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Stop including Terraform state refresh output in PR comments
 - Route `init-args` and `plan-args` through Terraform command-specific
   CLI env vars internally, avoiding raw shell expansion in action steps
 - Mark `init-args` and `plan-args` as trusted-only configuration in action metadata and security documentation

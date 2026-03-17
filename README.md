@@ -15,7 +15,7 @@ to quickly and easily see what infrastructure changes would be applied by the PR
 ## Features
 
 - Updates existing comments instead of creating duplicates
-- Collapsible sections for plan output and state refresh output
+- Collapsible plan output section
 - handles large plans gracefully-ish with truncation
 - Shows plan summary, count of import/create/update/destroy
 - Multi-directory support via `working-directory` input (for mono repos)

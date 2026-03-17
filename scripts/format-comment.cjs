@@ -1,5 +1,5 @@
 // Format and post/update Terraform plan as PR comment
-const { formatSummary, splitPlan, makeMarker } = require('./helpers.cjs');
+const { formatSummary, makeMarker } = require('./helpers.cjs');
 
 module.exports = async ({ github, context, core }) => {
   const plan = process.env.PLAN || '';
@@ -10,7 +10,6 @@ module.exports = async ({ github, context, core }) => {
 
   try {
     const summary = formatSummary(plan, exitCode, theme);
-    const { refresh, changes } = splitPlan(plan);
 
     if (exitCode === '2') {
       core.info('I love it when a plan comes together.');
@@ -18,22 +17,6 @@ module.exports = async ({ github, context, core }) => {
 
     // Generate unique marker for this workspace/directory
     const marker = makeMarker(workingDir, workspace);
-
-    // Build plan content with collapsible refresh section
-    const planContent = refresh
-      ? [
-          '<details><summary>State refresh</summary>',
-          '',
-          '```',
-          refresh,
-          '```',
-          '</details>',
-          '',
-          '```terraform',
-          changes,
-          '```'
-        ]
-      : ['```terraform', plan, '```'];
 
     // Add working directory if not root
     const dirNote = workingDir !== '.' ? `\n📁 \`${workingDir}\`\n` : '';
@@ -44,7 +27,9 @@ module.exports = async ({ github, context, core }) => {
       dirNote,
       `<details><summary>${summary || 'Show Plan'}</summary>`,
       '',
-      ...planContent,
+      '```terraform',
+      plan,
+      '```',
       '',
       '</details>',
       '',
@@ -87,34 +72,8 @@ module.exports = async ({ github, context, core }) => {
       }
     };
 
-    // If output is too large, try dropping state refresh first (it's less critical than the plan)
+    // Handle truncation for oversized plans
     if (output.length > GITHUB_COMMENT_LIMIT) {
-      if (refresh) {
-        // Try without refresh section
-        const outputWithoutRefresh = [
-          marker,
-          '### Terraform Plan',
-          dirNote,
-          `<details><summary>${summary || 'Show Plan'}</summary>`,
-          '',
-          '```terraform',
-          changes,
-          '```',
-          '',
-          '</details>',
-          '',
-          '_State refresh output omitted due to size._',
-          '',
-          `*Pusher: @${context.actor}, Action: \`${context.eventName}\`*`
-        ].join('\n');
-
-        if (outputWithoutRefresh.length <= GITHUB_COMMENT_LIMIT) {
-          await postComment(outputWithoutRefresh);
-          return;
-        }
-      }
-
-      // Still too large even without refresh - show truncated message
       const runUrl = `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
       const truncated = [
         marker,

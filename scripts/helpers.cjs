@@ -46,21 +46,6 @@ const formatSummary = (plan, exitCode, theme = 'default') => {
 };
 
 /**
- * Split plan into refresh and changes sections
- * @param {string} plan - The terraform plan output
- * @returns {{ refresh: string, changes: string }} Object with refresh and changes sections
- */
-const splitPlan = (plan) => {
-  const splitPoint = 'Terraform used the selected providers';
-  const idx = plan.indexOf(splitPoint);
-  if (idx === -1) return { refresh: '', changes: plan };
-  return {
-    refresh: plan.slice(0, idx).trim(),
-    changes: plan.slice(idx).trim()
-  };
-};
-
-/**
  * Generate unique comment marker for identifying bot comments
  * @param {string} workingDir - Working directory path
  * @param {string} workspace - Terraform workspace name
@@ -72,4 +57,4 @@ const makeMarker = (workingDir = '.', workspace = 'default') => {
   return `<!-- terraform-plan-comment:${normalizedDir}:${workspace} -->`;
 };
 
-module.exports = { formatSummary, splitPlan, makeMarker, THEMES };
+module.exports = { formatSummary, makeMarker, THEMES };
