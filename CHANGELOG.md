@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   CLI env vars internally, avoiding raw shell expansion in action steps
 - Mark `init-args` and `plan-args` as trusted-only configuration in action metadata and security documentation
 - Refresh workflow examples.
+- Move CI and package metadata to Node.js 24
 
 ## [1.1.0] - 2024-12-23
 

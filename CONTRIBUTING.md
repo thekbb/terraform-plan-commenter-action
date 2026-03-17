@@ -4,6 +4,8 @@ Thanks for your interest in contributing!
 
 ## Development Setup
 
+Use Node.js 24 for local development.
+
 ```bash
 # Clone the repo
 git clone https://github.com/thekbb/terraform-plan-commenter-action.git
