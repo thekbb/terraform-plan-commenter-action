@@ -21,6 +21,9 @@ This action:
 - Requires `pull-requests: write` to post PR comments
 - Uses `github.token` no additional secrets needed
 - Posts plan output to a PR comment be aware that plan output may contain sensitive information.
+- Treats `init-args` and `plan-args` as trusted configuration only.
+  Do not populate them from untrusted input such as PR content, comments,
+  or manually entered dispatch fields without validation.
 
 For strict environments, pin to a full SHA:
 
@@ -29,4 +32,4 @@ uses: thekbb/terraform-plan-commenter-action@<full-commit-sha>
 ```
 
 Or fork this repo into your org for complete control.
-I do this for all GitHub actions not owned by a vendors GitHub org.
+I do this for all GitHub actions not owned by a vendor's GitHub org.

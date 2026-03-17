@@ -34,6 +34,9 @@ on:
 jobs:
   plan:
     runs-on: ubuntu-latest
+    concurrency:
+      group: terraform
+      cancel-in-progress: false
     permissions:
       contents: read
       pull-requests: write
@@ -41,16 +44,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       # Configure your cloud credentials (example: AWS OIDC)
       - uses: aws-actions/configure-aws-credentials@v5
         with:
-          role-to-assume: arn:aws:iam::123456789:role/my-role
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/my-role
           aws-region: us-east-2
 
       # Run the plan
       # There are semantic versions (`v1.1.15`), `v1` will _always_ point to the latest `1.x.x`.
       - uses: thekbb/terraform-plan-commenter-action@v1
+        with:
+          init-args: '-lockfile=readonly'
 ```
 
 ## Inputs
@@ -61,9 +68,11 @@ jobs:
 | `working-directory` | Directory containing Terraform configuration | No | `.` |
 | `terraform-version` | Terraform version to use | No | `latest` |
 | `setup-terraform` | Whether to setup Terraform (set `false` if already configured) | No | `true` |
-| `init-args` | Additional arguments for `terraform init` | No | `''` |
-| `plan-args` | Additional arguments for `terraform plan` | No | `''` |
+| `init-args` | Trusted-only additional arguments for `terraform init` | No | `''` |
+| `plan-args` | Trusted-only additional arguments for `terraform plan` | No | `''` |
 | `summary-theme` | Emoji theme: `default`, `colorblind`, or `minimal` | No | `default` |
+
+Use `init-args` and `plan-args` only for trusted, repo-controlled values.
 
 ## Outputs
 
@@ -95,6 +104,7 @@ concurrency:
 ```yaml
 - uses: thekbb/terraform-plan-commenter-action@v1
   with:
+    init-args: '-lockfile=readonly'
     terraform-version: '1.14.3'
 ```
 
@@ -103,6 +113,7 @@ concurrency:
 ```yaml
 - uses: thekbb/terraform-plan-commenter-action@v1
   with:
+    init-args: '-lockfile=readonly'
     working-directory: 'infrastructure/'
 ```
 
@@ -111,6 +122,7 @@ concurrency:
 ```yaml
 - uses: thekbb/terraform-plan-commenter-action@v1
   with:
+    init-args: '-lockfile=readonly'
     plan-args: '-var-file=prod.tfvars'
 ```
 
@@ -126,6 +138,7 @@ If you're using a matrix or already have Terraform configured:
 
 - uses: thekbb/terraform-plan-commenter-action@v1
   with:
+    init-args: '-lockfile=readonly'
     setup-terraform: 'false'
 ```
 
@@ -134,6 +147,7 @@ If you're using a matrix or already have Terraform configured:
 ```yaml
 - uses: thekbb/terraform-plan-commenter-action@v1
   with:
+    init-args: '-lockfile=readonly'
     summary-theme: 'colorblind'
 ```
 
@@ -166,29 +180,38 @@ Select the workspace before running the action:
 
 - uses: thekbb/terraform-plan-commenter-action@v1
   with:
+    init-args: '-lockfile=readonly'
     working-directory: ./infrastructure
 ```
 
 ### Matrix example (multiple workspaces)
 
 ```yaml
+concurrency:
+  group: terraform
+  cancel-in-progress: false
+
 strategy:
   matrix:
     workspace: [dev, staging, prod]
 
 steps:
   - uses: actions/checkout@v6
+    with:
+      persist-credentials: false
 
   - name: Configure AWS
     uses: aws-actions/configure-aws-credentials@v5
     with:
-      role-to-assume: arn:aws:iam::123456789:role/terraform-${{ matrix.workspace }}
+      role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/terraform-${{ matrix.workspace }}
       aws-region: us-east-1
 
   - name: Select workspace
     run: terraform workspace select ${{ matrix.workspace }} || terraform workspace new ${{ matrix.workspace }}
 
   - uses: thekbb/terraform-plan-commenter-action@v1
+    with:
+      init-args: '-lockfile=readonly'
 ```
 
 Each workspace gets its own independent PR comment that updates separately!
@@ -215,13 +238,17 @@ The action posts a comment like this:
 For strict environments, pin to a full semantic version or full SHA:
 
 ```yaml
-uses: thekbb/terraform-plan-commenter-action@v1.1.15
+- uses: thekbb/terraform-plan-commenter-action@v1.1.15
+  with:
+    init-args: '-lockfile=readonly'
 ```
 
 or
 
 ```yaml
-uses: thekbb/terraform-plan-commenter-action@<full-commit-sha>
+- uses: thekbb/terraform-plan-commenter-action@<full-commit-sha>
+  with:
+    init-args: '-lockfile=readonly'
 ```
 
 ## Contributing
