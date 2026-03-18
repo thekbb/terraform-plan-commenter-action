@@ -24,6 +24,7 @@ const readmePath = path.join(repoRoot, 'README.md');
 
 const readText = (filePath) => fs.readFileSync(filePath, 'utf8');
 const writeText = (filePath, text) => fs.writeFileSync(filePath, text);
+const managedReleaseFiles = ['CHANGELOG.md', 'README.md', 'package.json', 'package-lock.json'];
 
 const git = (...gitArgs) => execFileSync('git', gitArgs, {
   cwd: repoRoot,
@@ -58,7 +59,7 @@ const updateReadmeReleaseExamples = (source, nextVersion) => {
   return updated;
 };
 
-const updateChangelog = (source, nextVersion) => {
+const inspectChangelog = (source, nextVersion) => {
   const unreleasedHeader = '## [Unreleased]';
   const unreleasedIndex = source.indexOf(unreleasedHeader);
   if (unreleasedIndex === -1) {
@@ -74,26 +75,37 @@ const updateChangelog = (source, nextVersion) => {
     .slice(unreleasedIndex + unreleasedHeader.length, nextSectionIndex)
     .trim();
 
-  if (!unreleasedBody) {
-    throw new Error('CHANGELOG.md Unreleased section is empty.');
-  }
-
   const releasedVersions = [...source.matchAll(/^## \[(?!Unreleased\])([^\]]+)\] - /gm)];
   if (releasedVersions.length === 0) {
     throw new Error('CHANGELOG.md does not contain any released version section.');
   }
 
   const previousVersion = releasedVersions[0][1];
-  if (previousVersion === nextVersion) {
-    throw new Error(`CHANGELOG.md already contains version ${nextVersion}.`);
+  const hasNextVersionSection = source.includes(`## [${nextVersion}] - `);
+
+  return {
+    unreleasedBody,
+    previousVersion,
+    hasNextVersionSection,
+  };
+};
+
+const updateChangelog = (source, nextVersion) => {
+  const { unreleasedBody, previousVersion, hasNextVersionSection } = inspectChangelog(source, nextVersion);
+  const unreleasedHeader = '## [Unreleased]';
+  const unreleasedIndex = source.indexOf(unreleasedHeader);
+  const nextSectionIndex = source.indexOf('\n## [', unreleasedIndex + unreleasedHeader.length);
+
+  if (!unreleasedBody) {
+    throw new Error('CHANGELOG.md Unreleased section is empty.');
   }
 
-  if (source.includes(`## [${nextVersion}] - `)) {
+  if (previousVersion === nextVersion || hasNextVersionSection) {
     throw new Error(`CHANGELOG.md already contains version ${nextVersion}.`);
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const releaseSection = `## [${nextVersion}] - ${today}\n\n${unreleasedBody}\n`;
+  const releaseSection = `## [${nextVersion}] - ${today}\n\n${unreleasedBody}\n\n`;
   let updated = [
     source.slice(0, unreleasedIndex),
     `${unreleasedHeader}\n\n`,
@@ -122,7 +134,7 @@ const updateChangelog = (source, nextVersion) => {
   return { updated, previousVersion, today };
 };
 
-const ensureReleaseState = (nextVersion) => {
+const ensureReleaseState = (nextVersion, { allowManagedFileChanges = false } = {}) => {
   const currentBranch = git('rev-parse', '--abbrev-ref', 'HEAD');
   if (currentBranch !== 'main') {
     throw new Error(`Releases must run from main. Current branch: ${currentBranch}`);
@@ -130,40 +142,105 @@ const ensureReleaseState = (nextVersion) => {
 
   const status = git('status', '--porcelain');
   if (status) {
-    throw new Error('Working tree must be clean before running release.');
-  }
+    if (!allowManagedFileChanges) {
+      throw new Error('Working tree must be clean before running release.');
+    }
 
-  const existingTags = new Set(git('tag', '--list').split('\n').filter(Boolean));
-  if (existingTags.has(`v${nextVersion}`)) {
-    throw new Error(`Tag v${nextVersion} already exists.`);
+    const changedFiles = status
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => line.slice(3).trim());
+
+    const hasUnexpectedChanges = changedFiles.some((file) => !managedReleaseFiles.includes(file));
+    if (hasUnexpectedChanges) {
+      throw new Error(
+        'Only release-managed files may be modified when resuming a partial release.'
+      );
+    }
   }
 };
 
+const tagExists = (tagName) => git('tag', '--list', tagName) === tagName;
+
+const derefTag = (tagName) => git('rev-parse', `${tagName}^{}`);
+
+const ensureTagOnHead = (tagName, message, { force = false } = {}) => {
+  const head = git('rev-parse', 'HEAD');
+
+  if (tagExists(tagName)) {
+    if (derefTag(tagName) === head && !force) {
+      return;
+    }
+
+    git('tag', '-fa', tagName, '-m', message);
+    return;
+  }
+
+  git('tag', '-a', tagName, '-m', message);
+};
+
 const packageJson = JSON.parse(readText(packageJsonPath));
+const packageLock = JSON.parse(readText(packageLockPath));
 const currentVersion = packageJson.version;
+const currentLockVersion = packageLock.version;
 const changelog = readText(changelogPath);
 const readme = readText(readmePath);
-const { updated: nextChangelog, previousVersion, today } = updateChangelog(changelog, version);
-const nextReadme = updateReadmeReleaseExamples(readme, version);
+const changelogState = inspectChangelog(changelog, version);
 
-if (currentVersion !== previousVersion) {
-  throw new Error(
-    `package.json version (${currentVersion}) does not match the latest released changelog version (${previousVersion}).`
-  );
+let nextChangelog = changelog;
+let nextReadme = updateReadmeReleaseExamples(readme, version);
+let today = new Date().toISOString().slice(0, 10);
+let isPreparedRelease = false;
+
+if (changelogState.unreleasedBody) {
+  const releaseUpdate = updateChangelog(changelog, version);
+  nextChangelog = releaseUpdate.updated;
+  today = releaseUpdate.today;
+
+  if (currentVersion !== changelogState.previousVersion) {
+    throw new Error(
+      `package.json version (${currentVersion}) does not match the latest released changelog version (${changelogState.previousVersion}).`
+    );
+  }
+  if (currentLockVersion !== changelogState.previousVersion) {
+    throw new Error(
+      `package-lock.json version (${currentLockVersion}) does not match the latest released changelog version (${changelogState.previousVersion}).`
+    );
+  }
+} else {
+  isPreparedRelease = changelogState.hasNextVersionSection;
+
+  if (!isPreparedRelease) {
+    throw new Error('CHANGELOG.md Unreleased section is empty.');
+  }
+
+  if (currentVersion !== version) {
+    throw new Error(
+      `package.json version (${currentVersion}) does not match the prepared release version (${version}).`
+    );
+  }
+  if (currentLockVersion !== version) {
+    throw new Error(
+      `package-lock.json version (${currentLockVersion}) does not match the prepared release version (${version}).`
+    );
+  }
 }
 
 const majorTag = `v${version.split('.')[0]}`;
 
 if (checkOnly) {
   console.log(`Release check passed for ${version}`);
-  console.log(`Latest released version: ${previousVersion}`);
+  console.log(`Latest released version: ${changelogState.previousVersion}`);
   console.log(`Release date: ${today}`);
   console.log(`Major tag to move: ${majorTag}`);
+  if (isPreparedRelease) {
+    console.log('Release files are already prepared; rerunning release will resume from the git/tag steps.');
+  }
   console.log('Files to update: CHANGELOG.md, README.md, package.json, package-lock.json');
   process.exit(0);
 }
 
-ensureReleaseState(version);
+ensureReleaseState(version, { allowManagedFileChanges: isPreparedRelease });
 
 writeText(changelogPath, nextChangelog);
 writeText(readmePath, nextReadme);
@@ -171,9 +248,14 @@ updateJsonVersion(packageJsonPath, version);
 updateJsonVersion(packageLockPath, version);
 
 git('add', 'CHANGELOG.md', 'README.md', 'package.json', 'package-lock.json');
-git('commit', '-m', `Release v${version}`);
-git('tag', '-a', `v${version}`, '-m', `Release v${version}`);
-git('tag', '-fa', majorTag, '-m', `Release v${version}`);
+try {
+  git('diff', '--cached', '--quiet');
+} catch {
+  git('commit', '-m', `Release v${version}`);
+}
+
+ensureTagOnHead(`v${version}`, `Release v${version}`);
+ensureTagOnHead(majorTag, `Release v${version}`, { force: true });
 git('push', 'origin', 'main');
 git('push', 'origin', `refs/tags/v${version}`);
 git('push', 'origin', `refs/tags/${majorTag}`, '--force');

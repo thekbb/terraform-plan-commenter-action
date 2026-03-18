@@ -155,7 +155,7 @@ Available themes:
 
 | Theme | Import | Create | Update | Destroy |
 | ----- | ------ | ------ | ------ | ------- |
-| `default` | 🔵 <= | 🟢 + | 🟡 ~ | 🔴 - |
+| `default` | 🔵 | 🟢 | 🟡 | 🔴 |
 | `colorblind` | 📥 | ➕ | ✏️ | ➖ |
 | `minimal` | [import] | [create] | [update] | [destroy] |
 
@@ -222,8 +222,8 @@ The action posts a comment like this:
 
 > ### Terraform Plan
 >
-> <details><summary>🔵 <= <b>import</b> <code>2</code> · 🟢 + <b>create</b> <code>3</code> ·
-> 🟡 ~ <b>update</b> <code>1</code> · 🔴 - <b>destroy</b> <code>0</code></summary>
+> <details><summary>🔵 <b>import</b> <code>2</code> · 🟢 <b>create</b> <code>3</code> ·
+> 🟡 <b>update</b> <code>1</code> · 🔴 <b>destroy</b> <code>0</code></summary>
 >
 > ```terraform
 > Terraform used the selected providers to generate the following execution plan:

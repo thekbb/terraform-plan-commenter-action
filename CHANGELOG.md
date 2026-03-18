@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Make the release script resumable after partially completed release preparation
+  or git/push failures
+
 ## [1.2.0] - 2026-03-18
 
 ### Changed
 
 - Stop including Terraform state refresh output in PR comments
-- Update the default comment summary theme to use Terraform-style `+`, `~`, and `-` symbols
 - Route `init-args` and `plan-args` through Terraform command-specific
   CLI env vars internally, avoiding raw shell expansion in action steps
 - Mark `init-args` and `plan-args` as trusted-only configuration in action metadata and security documentation
@@ -25,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverage for PR comment create/update, truncation, pagination, and API failure handling in `format-comment.cjs`
 - npm-based release automation for validating the changelog, creating release commits, and moving tags
   while updating README release examples
+
 ## [1.1.0] - 2024-12-23
 
 ### Added

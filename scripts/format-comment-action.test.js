@@ -67,7 +67,7 @@ describe('format-comment action behavior', () => {
     const [{ body }] = github.rest.issues.createComment.mock.calls[0];
     expect(body).toContain('<!-- terraform-plan-comment:root:default -->');
     expect(body).toContain('### Terraform Plan');
-    expect(body).toContain('🟢 + <strong>create</strong> <code>1</code>');
+    expect(body).toContain('🟢 <strong>create</strong> <code>1</code>');
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
