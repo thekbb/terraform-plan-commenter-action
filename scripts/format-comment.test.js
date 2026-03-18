@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatSummary, makeMarker, THEMES } from './helpers.cjs';
+import { formatSummary, stripRefreshNoise, makeMarker, THEMES } from './helpers.cjs';
 
 describe('formatSummary', () => {
   it('returns no changes for exit code 0', () => {
@@ -112,6 +112,47 @@ describe('THEMES', () => {
       update: '[update]',
       destroy: '[destroy]'
     });
+  });
+});
+
+describe('stripRefreshNoise', () => {
+  it('removes refresh and data source read noise', () => {
+    const plan = [
+      'aws_s3_bucket.site: Refreshing state... [id=site]',
+      'data.aws_iam_policy_document.example: Reading...',
+      'data.aws_iam_policy_document.example: Read complete after 0s [id=123]',
+      '',
+      'Terraform used the selected providers to generate the following execution plan.',
+      '',
+      'Plan: 1 to add, 0 to change, 0 to destroy.',
+    ].join('\n');
+
+    const result = stripRefreshNoise(plan);
+
+    expect(result).not.toContain('Refreshing state');
+    expect(result).not.toContain('Reading...');
+    expect(result).not.toContain('Read complete after');
+    expect(result).toContain('Terraform used the selected providers');
+    expect(result).toContain('Plan: 1 to add');
+  });
+
+  it('collapses extra blank lines after filtering', () => {
+    const plan = [
+      'aws_s3_bucket.site: Refreshing state... [id=site]',
+      '',
+      '',
+      'No changes. Your infrastructure matches the configuration.',
+      '',
+      '',
+      'Terraform has compared your real infrastructure against your configuration.',
+    ].join('\n');
+
+    const result = stripRefreshNoise(plan);
+
+    expect(result).toBe(
+      'No changes. Your infrastructure matches the configuration.\n\n' +
+      'Terraform has compared your real infrastructure against your configuration.'
+    );
   });
 });
 

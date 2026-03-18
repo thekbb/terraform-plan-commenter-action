@@ -46,6 +46,32 @@ const formatSummary = (plan, exitCode, theme = 'default') => {
 };
 
 /**
+ * Remove Terraform refresh/read noise from plan output before posting to PRs.
+ * @param {string} plan - The raw terraform plan output
+ * @returns {string} Cleaned plan output
+ */
+const stripRefreshNoise = (plan = '') => {
+  const lines = plan.split('\n');
+  const filtered = [];
+
+  for (const line of lines) {
+    if (/:\sRefreshing state\.\.\./.test(line)) continue;
+    if (/:\sReading\.\.\./.test(line)) continue;
+    if (/:\sRead complete after /.test(line)) continue;
+    filtered.push(line);
+  }
+
+  const collapsed = [];
+  for (const line of filtered) {
+    if (line === '' && collapsed.at(-1) === '') continue;
+    collapsed.push(line);
+  }
+
+  const cleaned = collapsed.join('\n').trim();
+  return cleaned || plan;
+};
+
+/**
  * Generate unique comment marker for identifying bot comments
  * @param {string} workingDir - Working directory path
  * @param {string} workspace - Terraform workspace name
@@ -57,4 +83,4 @@ const makeMarker = (workingDir = '.', workspace = 'default') => {
   return `<!-- terraform-plan-comment:${normalizedDir}:${workspace} -->`;
 };
 
-module.exports = { formatSummary, makeMarker, THEMES };
+module.exports = { formatSummary, stripRefreshNoise, makeMarker, THEMES };

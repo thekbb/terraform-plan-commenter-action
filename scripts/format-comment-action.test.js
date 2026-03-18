@@ -71,6 +71,29 @@ describe('format-comment action behavior', () => {
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
+  it('removes refresh noise from the posted plan output', async () => {
+    process.env.PLAN = [
+      'aws_s3_bucket.site: Refreshing state... [id=site]',
+      'data.aws_iam_policy_document.example: Reading...',
+      'data.aws_iam_policy_document.example: Read complete after 0s [id=123]',
+      '',
+      'Terraform used the selected providers to generate the following execution plan.',
+      '',
+      'Plan: 1 to add, 0 to change, 0 to destroy.',
+    ].join('\n');
+    const github = makeGithub();
+    const core = makeCore();
+
+    await formatComment({ github, context: baseContext, core });
+
+    const [{ body }] = github.rest.issues.createComment.mock.calls[0];
+    expect(body).not.toContain('Refreshing state');
+    expect(body).not.toContain('Reading...');
+    expect(body).not.toContain('Read complete after');
+    expect(body).toContain('Terraform used the selected providers');
+    expect(body).toContain('Plan: 1 to add, 0 to change, 0 to destroy.');
+  });
+
   it('updates the existing matching bot comment', async () => {
     const github = makeGithub();
     github.rest.issues.listComments.mockResolvedValue({

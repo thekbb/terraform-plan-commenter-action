@@ -1,5 +1,5 @@
 // Format and post/update Terraform plan as PR comment
-const { formatSummary, makeMarker } = require('./helpers.cjs');
+const { formatSummary, stripRefreshNoise, makeMarker } = require('./helpers.cjs');
 
 module.exports = async ({ github, context, core }) => {
   const plan = process.env.PLAN || '';
@@ -10,6 +10,7 @@ module.exports = async ({ github, context, core }) => {
 
   try {
     const summary = formatSummary(plan, exitCode, theme);
+    const displayPlan = stripRefreshNoise(plan);
 
     if (exitCode === '2') {
       core.info('I love it when a plan comes together.');
@@ -28,7 +29,7 @@ module.exports = async ({ github, context, core }) => {
       `<details><summary>${summary || 'Show Plan'}</summary>`,
       '',
       '```terraform',
-      plan,
+      displayPlan,
       '```',
       '',
       '</details>',
