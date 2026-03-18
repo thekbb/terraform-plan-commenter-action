@@ -54,7 +54,7 @@ jobs:
           aws-region: us-east-2
 
       # Run the plan
-      # There are semantic versions (`v1.1.15`), `v1` will _always_ point to the latest `1.x.x`.
+      # There are semantic versions (`v1.2.0`), `v1` will _always_ point to the latest `1.x.x`.
       - uses: thekbb/terraform-plan-commenter-action@v1
         with:
           init-args: '-lockfile=readonly'
@@ -238,7 +238,7 @@ The action posts a comment like this:
 For strict environments, pin to a full semantic version or full SHA:
 
 ```yaml
-- uses: thekbb/terraform-plan-commenter-action@v1.1.15
+- uses: thekbb/terraform-plan-commenter-action@v1.2.0
   with:
     init-args: '-lockfile=readonly'
 ```

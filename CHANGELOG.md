@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-03-18
+
 ### Changed
 
 - Stop including Terraform state refresh output in PR comments
@@ -23,7 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverage for PR comment create/update, truncation, pagination, and API failure handling in `format-comment.cjs`
 - npm-based release automation for validating the changelog, creating release commits, and moving tags
   while updating README release examples
-
 ## [1.1.0] - 2024-12-23
 
 ### Added
@@ -52,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graceful handling of large plans with truncation
 - Comprehensive test coverage
 
-[Unreleased]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/thekbb/terraform-plan-commenter-action/releases/tag/v1.0.0
