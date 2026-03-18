@@ -127,34 +127,8 @@ describe('format-comment action behavior', () => {
     expect(github.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
-  it('drops the refresh section when that keeps the comment under the size limit', async () => {
-    process.env.PLAN = [
-      'aws_s3_bucket.site: Refreshing state...',
-      '',
-      'Terraform used the selected providers to generate the following execution plan.',
-      '',
-      `Plan: 1 to add, 0 to change, 0 to destroy.${'x'.repeat(64500)}`,
-    ].join('\n');
-    const github = makeGithub();
-    const core = makeCore();
-
-    await formatComment({ github, context: baseContext, core });
-
-    const [{ body }] = github.rest.issues.createComment.mock.calls[0];
-    expect(body).toContain('_State refresh output omitted due to size._');
-    expect(body).not.toContain('<summary>State refresh</summary>');
-    expect(body).toContain('```terraform');
-    expect(core.setFailed).not.toHaveBeenCalled();
-  });
-
-  it('posts a workflow-run link when the plan is still too large after dropping refresh', async () => {
-    process.env.PLAN = [
-      'aws_s3_bucket.site: Refreshing state...',
-      '',
-      'Terraform used the selected providers to generate the following execution plan.',
-      '',
-      `Plan: 1 to add, 0 to change, 0 to destroy.${'x'.repeat(70000)}`,
-    ].join('\n');
+  it('posts a workflow-run link when the plan is too large for a GitHub comment', async () => {
+    process.env.PLAN = `Plan: 1 to add, 0 to change, 0 to destroy.${'x'.repeat(70000)}`;
     const github = makeGithub();
     const core = makeCore();
 
@@ -166,6 +140,7 @@ describe('format-comment action behavior', () => {
       'https://github.com/thekbb/terraform-plan-commenter-action/actions/runs/987654321'
     );
     expect(body).not.toContain('```terraform');
+    expect(body).not.toContain('State refresh');
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
