@@ -20,6 +20,7 @@ const repoRoot = process.cwd();
 const changelogPath = path.join(repoRoot, 'CHANGELOG.md');
 const packageJsonPath = path.join(repoRoot, 'package.json');
 const packageLockPath = path.join(repoRoot, 'package-lock.json');
+const readmePath = path.join(repoRoot, 'README.md');
 
 const readText = (filePath) => fs.readFileSync(filePath, 'utf8');
 const writeText = (filePath, text) => fs.writeFileSync(filePath, text);
@@ -38,6 +39,23 @@ const updateJsonVersion = (filePath, nextVersion) => {
     json.packages[''].version = nextVersion;
   }
   writeText(filePath, `${JSON.stringify(json, null, 2)}\n`);
+};
+
+const updateReadmeReleaseExamples = (source, nextVersion) => {
+  let updated = source;
+  const actionVersionPattern = /thekbb\/terraform-plan-commenter-action@v\d+\.\d+\.\d+/g;
+  const semanticVersionNotePattern = /semantic versions \(`v\d+\.\d+\.\d+`\)/;
+
+  updated = updated.replace(
+    actionVersionPattern,
+    `thekbb/terraform-plan-commenter-action@v${nextVersion}`
+  );
+  updated = updated.replace(
+    semanticVersionNotePattern,
+    `semantic versions (\`v${nextVersion}\`)`
+  );
+
+  return updated;
 };
 
 const updateChangelog = (source, nextVersion) => {
@@ -124,7 +142,9 @@ const ensureReleaseState = (nextVersion) => {
 const packageJson = JSON.parse(readText(packageJsonPath));
 const currentVersion = packageJson.version;
 const changelog = readText(changelogPath);
+const readme = readText(readmePath);
 const { updated: nextChangelog, previousVersion, today } = updateChangelog(changelog, version);
+const nextReadme = updateReadmeReleaseExamples(readme, version);
 
 if (currentVersion !== previousVersion) {
   throw new Error(
@@ -139,17 +159,18 @@ if (checkOnly) {
   console.log(`Latest released version: ${previousVersion}`);
   console.log(`Release date: ${today}`);
   console.log(`Major tag to move: ${majorTag}`);
-  console.log('Files to update: CHANGELOG.md, package.json, package-lock.json');
+  console.log('Files to update: CHANGELOG.md, README.md, package.json, package-lock.json');
   process.exit(0);
 }
 
 ensureReleaseState(version);
 
 writeText(changelogPath, nextChangelog);
+writeText(readmePath, nextReadme);
 updateJsonVersion(packageJsonPath, version);
 updateJsonVersion(packageLockPath, version);
 
-git('add', 'CHANGELOG.md', 'package.json', 'package-lock.json');
+git('add', 'CHANGELOG.md', 'README.md', 'package.json', 'package-lock.json');
 git('commit', '-m', `Release v${version}`);
 git('tag', '-a', `v${version}`, '-m', `Release v${version}`);
 git('tag', '-fa', majorTag, '-m', `Release v${version}`);

@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Coverage for PR comment create/update, truncation, pagination, and API failure handling in `format-comment.cjs`
 - npm-based release automation for validating the changelog, creating release commits, and moving tags
+  while updating README release examples
 
 ## [1.1.0] - 2024-12-23
 

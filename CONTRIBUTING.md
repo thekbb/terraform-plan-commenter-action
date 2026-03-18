@@ -56,9 +56,10 @@ npm run release -- 1.2.0
 ```
 
 `release:check` validates the changelog and planned release metadata without
-changing git state. `release` updates `CHANGELOG.md`, `package.json`, and
-`package-lock.json`, creates a release commit, tags `vX.Y.Z`, moves the major
-tag (for example `v1`), and pushes the branch and tags to `origin`.
+changing git state. `release` updates `CHANGELOG.md`, README semantic-version
+examples, `package.json`, and `package-lock.json`, creates a release commit,
+tags `vX.Y.Z`, moves the major tag (for example `v1`), and pushes the branch
+and tags to `origin`.
 
 ## No Build Step Required
 
