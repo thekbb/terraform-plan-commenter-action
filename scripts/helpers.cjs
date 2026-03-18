@@ -2,7 +2,7 @@
 
 /** Available emoji themes */
 const THEMES = {
-  default: { import: '🔵', create: '🟢', update: '🟡', destroy: '🔴' },
+  default: { import: '🔵 <=', create: '🟢 +', update: '🟡 ~', destroy: '🔴 -' },
   colorblind: { import: '📥', create: '➕', update: '✏️', destroy: '➖' },
   minimal: { import: '[import]', create: '[create]', update: '[update]', destroy: '[destroy]' }
 };

@@ -11,7 +11,9 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "lint:md": "markdownlint '**/*.md' --ignore node_modules"
+    "lint:md": "markdownlint '**/*.md' --ignore node_modules",
+    "release:check": "node scripts/release.mjs --check",
+    "release": "node scripts/release.mjs"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.0.16",

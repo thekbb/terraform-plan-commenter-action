@@ -46,6 +46,20 @@ npm run test:watch          # Watch mode
 1. Commit with a descriptive message
 1. Push and open a PR
 
+## Releases
+
+Use the npm release scripts from a clean `main` branch:
+
+```bash
+npm run release:check -- 1.2.0
+npm run release -- 1.2.0
+```
+
+`release:check` validates the changelog and planned release metadata without
+changing git state. `release` updates `CHANGELOG.md`, `package.json`, and
+`package-lock.json`, creates a release commit, tags `vX.Y.Z`, moves the major
+tag (for example `v1`), and pushes the branch and tags to `origin`.
+
 ## No Build Step Required
 
 This action uses `github-script` and plain JavaScript, so there's no build step.

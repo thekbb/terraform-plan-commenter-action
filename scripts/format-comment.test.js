@@ -22,17 +22,17 @@ describe('formatSummary', () => {
     const plan = 'Plan: 3 to add, 1 to change, 2 to destroy.';
     const result = formatSummary(plan, '2');
     expect(result).toBe(
-      '🟢 <strong>create</strong> <code>3</code> · ' +
-      '🟡 <strong>update</strong> <code>1</code> · ' +
-      '🔴 <strong>destroy</strong> <code>2</code>'
+      '🟢 + <strong>create</strong> <code>3</code> · ' +
+      '🟡 ~ <strong>update</strong> <code>1</code> · ' +
+      '🔴 - <strong>destroy</strong> <code>2</code>'
     );
   });
 
   it('parses imports', () => {
     const plan = 'Plan: 2 to import, 1 to add, 0 to change, 0 to destroy.';
     const result = formatSummary(plan, '2');
-    expect(result).toContain('🔵 <strong>import</strong> <code>2</code>');
-    expect(result).toContain('🟢 <strong>create</strong> <code>1</code>');
+    expect(result).toContain('🔵 <= <strong>import</strong> <code>2</code>');
+    expect(result).toContain('🟢 + <strong>create</strong> <code>1</code>');
   });
 
   it('shows imports first in order', () => {
@@ -44,9 +44,9 @@ describe('formatSummary', () => {
   it('includes zero counts for context', () => {
     const plan = 'Plan: 0 to add, 0 to change, 5 to destroy.';
     const result = formatSummary(plan, '2');
-    expect(result).toContain('🟢 <strong>create</strong> <code>0</code>');
-    expect(result).toContain('🟡 <strong>update</strong> <code>0</code>');
-    expect(result).toContain('🔴 <strong>destroy</strong> <code>5</code>');
+    expect(result).toContain('🟢 + <strong>create</strong> <code>0</code>');
+    expect(result).toContain('🟡 ~ <strong>update</strong> <code>0</code>');
+    expect(result).toContain('🔴 - <strong>destroy</strong> <code>5</code>');
   });
 
   it('returns empty string when no counts found', () => {
@@ -82,17 +82,17 @@ describe('formatSummary', () => {
   it('falls back to default for unknown theme', () => {
     const plan = 'Plan: 1 to add, 0 to change, 0 to destroy.';
     const result = formatSummary(plan, '2', 'nonexistent');
-    expect(result).toContain('🟢 <strong>create</strong>');
+    expect(result).toContain('🟢 + <strong>create</strong>');
   });
 });
 
 describe('THEMES', () => {
   it('has default theme with colored emojis', () => {
     expect(THEMES.default).toEqual({
-      import: '🔵',
-      create: '🟢',
-      update: '🟡',
-      destroy: '🔴'
+      import: '🔵 <=',
+      create: '🟢 +',
+      update: '🟡 ~',
+      destroy: '🔴 -'
     });
   });
 
