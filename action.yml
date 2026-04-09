@@ -52,7 +52,7 @@ runs:
   steps:
     - name: Setup Terraform
       if: inputs.setup-terraform == 'true'
-      uses: hashicorp/setup-terraform@v4
+      uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
       with:
         terraform_version: ${{ inputs.terraform-version }}
         terraform_wrapper: false  # We capture output ourselves
@@ -90,7 +90,7 @@ runs:
 
     - name: Post PR Comment
       if: github.event_name == 'pull_request'
-      uses: actions/github-script@v8
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
       env:
         PLAN: ${{ steps.plan.outputs.stdout }}
         PLAN_EXIT_CODE: ${{ steps.plan.outputs.exitcode }}
