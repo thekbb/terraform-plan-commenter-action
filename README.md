@@ -86,9 +86,8 @@ Use `init-args` and `plan-args` only for trusted, repo-controlled values.
 
 ### Concurrency
 
-Though Terraform state locking will keep you safe from concurrent runs, It's possible that
-Multiple commits in the same PR, or multiple PRs may collide with each other or a Terraform apply in a different GitHub
-action - which may require manually unlocking terraform state.
+Though Terraform state locking protects against concurrent runs, multiple commits in the same PR, multiple PRs, or a
+Terraform apply from another GitHub Action can still collide and may require manually unlocking state.
 
 You should use GitHub actions concurrency to queue up jobs. You'll need to get fancier
 if you have multiple workspaces, or a matrix setup - action inputs and matrix values will help make the group name.
