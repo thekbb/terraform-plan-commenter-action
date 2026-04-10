@@ -107,9 +107,8 @@ runs:
           await script({ github, context, core });
 
     - name: Check Plan Status
+      if: steps.plan.outputs.exitcode == '1'
       shell: bash
       run: |
-        if [ "${{ steps.plan.outputs.exitcode }}" == "1" ]; then
-          echo "::error::Terraform plan failed"
-          exit 1
-        fi
+        echo "::error::Terraform plan failed"
+        exit 1
