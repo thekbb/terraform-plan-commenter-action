@@ -54,11 +54,19 @@ jobs:
           aws-region: us-east-2
 
       # Run the plan
-      # There are semantic versions (`v1.2.0`), `v1` will _always_ point to the latest `1.x.x`.
-      - uses: thekbb/terraform-plan-commenter-action@v1
+      # Prefer a full 40-character commit SHA in production. Keep the release tag
+      # in a trailing comment for human review.
+      - uses: thekbb/terraform-plan-commenter-action@<full-commit-sha> # v1.2.1
         with:
           init-args: '-lockfile=readonly'
 ```
+
+That is the recommended starting point:
+
+- trigger on `pull_request`, not `pull_request_target`
+- grant only the permissions the job needs
+- use a full 40-character commit SHA if you want an immutable workflow reference
+- keep the release tag in a trailing comment so humans can see the intended version quickly
 
 ## Inputs
 
@@ -232,22 +240,91 @@ The action posts a comment like this:
 >
 > *Pusher: @username, Action: `pull_request`*
 
-## Security
+## Update Strategy
 
-For strict environments, pin to a full semantic version or full SHA:
+For security, prefer a full 40-character commit SHA over a moving tag such as `@v1`. GitHub recommends full-length
+commit SHAs as the immutable option for third-party actions in its
+[Secure use reference](https://docs.github.com/en/actions/reference/security/secure-use). If you want automatic
+updates while still using immutable workflow references, enable Dependabot for GitHub Actions in your repository:
 
 ```yaml
-- uses: thekbb/terraform-plan-commenter-action@v1.2.0
-  with:
-    init-args: '-lockfile=readonly'
+# .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
 ```
 
-or
+Dependabot updates workflow `uses:` references in `.github/workflows`, including commit SHAs for GitHub Actions. The
+trailing `# v1.2.1` comment is mainly for human review so maintainers can see which release a referenced SHA
+corresponds to.
+
+Use a release-specific tag such as `@v1.2.1` if you want a human-readable reference to a single published release. Use
+`@v1` only if you deliberately want the convenience of a moving major tag. For GitHub's model for combining fixed
+release tags with movable major tags, see
+[Using immutable releases and tags to manage your action's releases](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/using-immutable-releases-and-tags-to-manage-your-actions-releases).
+
+## Security & Trust
+
+- **Default token friendly** - `github-token` defaults to `${{ github.token }}`
+- **Minimal permissions** - the action only needs the permissions granted to the job that invokes it
+- **GitHub-aligned workflow security guidance** - GitHub recommends full commit SHAs for third-party actions in its
+  [Secure use reference](https://docs.github.com/en/actions/reference/security/secure-use)
+- **Immutable workflow references available** - prefer a full 40-character commit SHA for production workflows
+- **Signed release tags** - release tags are signed with the published project GPG key
+- **Published release signing key** - import [`keys/release-signing-key.asc`](keys/release-signing-key.asc) before
+  verifying a tag
+- **Moving major tag is explicit** - `@v1` is intentionally movable and should not be treated as an immutable
+  reference
 
 ```yaml
 - uses: thekbb/terraform-plan-commenter-action@<full-commit-sha>
   with:
     init-args: '-lockfile=readonly'
+```
+
+If you prefer a release-specific tag in `uses:`, pin to the current release instead:
+
+```yaml
+- uses: thekbb/terraform-plan-commenter-action@v1.2.1
+  with:
+    init-args: '-lockfile=readonly'
+```
+
+## Verify a Release
+
+Release tags in this repository are signed with the GPG key whose public half is included at
+[`keys/release-signing-key.asc`](keys/release-signing-key.asc).
+
+Fingerprint:
+
+```text
+353A AFB2 1CE8 1D84 3634 AD3E DE52 EEA6 AF0D 8779
+```
+
+To verify a release tag locally:
+
+```bash
+gpg --import keys/release-signing-key.asc
+gpg --show-keys --fingerprint keys/release-signing-key.asc
+git fetch origin --tags --force
+git verify-tag v1.2.1
+git rev-parse v1.2.1^{commit}
+```
+
+For an additional cross-check, you can confirm the same public key is published on `keys.openpgp.org` for
+`kevin@thekbb.net`:
+
+```bash
+gpg --keyserver hkps://keys.openpgp.org --search-keys kevin@thekbb.net
+```
+
+The fingerprint should still match exactly:
+
+```text
+353A AFB2 1CE8 1D84 3634 AD3E DE52 EEA6 AF0D 8779
 ```
 
 ## Contributing
