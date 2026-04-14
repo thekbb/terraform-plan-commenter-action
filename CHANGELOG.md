@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-04-11
+
+### Added
+
+- Include the armored public GPG key used to sign release tags
+
 ### Changed
 
-- Make the release script resumable after partially completed release preparation
-  or git/push failures
+- Pin external GitHub Actions to full SHA
+- Move the failed-plan check to a step-level `if`
+- Dependency updates
+- Document SHA pinning guidance, release tag usage, and signed tag verification in the README
 
 ## [1.2.0] - 2026-03-18
 
@@ -59,6 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test coverage
 
 [Unreleased]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.2.0...HEAD
+[1.2.1]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.2.0...1.2.1
 [1.2.0]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/thekbb/terraform-plan-commenter-action/releases/tag/v1.0.0
