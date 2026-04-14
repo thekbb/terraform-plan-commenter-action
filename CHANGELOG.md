@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Omit the workflow run link from truncated PR comments when `GITHUB_SERVER_URL` is unavailable
+
+### Added
+
+- Regression coverage for truncated comments when the GitHub server URL is missing
+
 ## [1.2.1] - 2026-04-11
 
 ### Added
