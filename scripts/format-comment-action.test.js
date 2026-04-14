@@ -142,6 +142,29 @@ describe('format-comment action behavior', () => {
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
+  it('does not update a bot comment with a different marker', async () => {
+    const github = makeGithub();
+    github.rest.issues.listComments.mockResolvedValue({
+      data: [
+        {
+          id: 21,
+          user: { type: 'Bot' },
+          body: '<!-- terraform-plan-comment:infrastructure:default -->\nother bot comment',
+        },
+      ],
+    });
+    const core = makeCore();
+
+    await formatComment({ github, context: baseContext, core });
+
+    expect(github.rest.issues.updateComment).not.toHaveBeenCalled();
+    expect(github.rest.issues.createComment).toHaveBeenCalledTimes(1);
+
+    const [{ body }] = github.rest.issues.createComment.mock.calls[0];
+    expect(body).toContain('<!-- terraform-plan-comment:root:default -->');
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
   it('uses GitHub pagination when available to find an existing comment', async () => {
     const github = makeGithub({
       paginate: vi.fn().mockResolvedValue([
