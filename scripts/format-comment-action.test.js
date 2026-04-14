@@ -150,6 +150,31 @@ describe('format-comment action behavior', () => {
     expect(github.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
+  it('creates a separate comment for a non-root working directory', async () => {
+    process.env.WORKING_DIR = 'infrastructure/prod';
+    const github = makeGithub();
+    github.rest.issues.listComments.mockResolvedValue({
+      data: [
+        {
+          id: 9,
+          user: { type: 'Bot' },
+          body: '<!-- terraform-plan-comment:root:default -->\nroot comment',
+        },
+      ],
+    });
+    const core = makeCore();
+
+    await formatComment({ github, context: baseContext, core });
+
+    expect(github.rest.issues.updateComment).not.toHaveBeenCalled();
+    expect(github.rest.issues.createComment).toHaveBeenCalledTimes(1);
+
+    const [{ body }] = github.rest.issues.createComment.mock.calls[0];
+    expect(body).toContain('<!-- terraform-plan-comment:infrastructure-prod:default -->');
+    expect(body).toContain('📁 `infrastructure/prod`');
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
   it('posts a workflow-run link when the plan is too large for a GitHub comment', async () => {
     process.env.PLAN = `Plan: 1 to add, 0 to change, 0 to destroy.${'x'.repeat(70000)}`;
     const github = makeGithub();
