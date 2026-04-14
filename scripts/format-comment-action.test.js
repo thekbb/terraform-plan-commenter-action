@@ -175,6 +175,21 @@ describe('format-comment action behavior', () => {
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
+  it('falls back to "Show Plan" when exit code indicates changes but plan output is empty', async () => {
+    process.env.PLAN = '';
+    process.env.PLAN_EXIT_CODE = '2';
+    const github = makeGithub();
+    const core = makeCore();
+
+    await formatComment({ github, context: baseContext, core });
+
+    expect(github.rest.issues.createComment).toHaveBeenCalledTimes(1);
+    const [{ body }] = github.rest.issues.createComment.mock.calls[0];
+    expect(body).toContain('<details><summary>Show Plan</summary>');
+    expect(body).toContain('```terraform\n\n```');
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
   it('posts a workflow-run link when the plan is too large for a GitHub comment', async () => {
     process.env.PLAN = `Plan: 1 to add, 0 to change, 0 to destroy.${'x'.repeat(70000)}`;
     const github = makeGithub();
