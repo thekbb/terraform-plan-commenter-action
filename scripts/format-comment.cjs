@@ -75,14 +75,17 @@ module.exports = async ({ github, context, core }) => {
 
     // Handle truncation for oversized plans
     if (output.length > GITHUB_COMMENT_LIMIT) {
-      const runUrl = `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+      const githubServerUrl = process.env.GITHUB_SERVER_URL;
+      const runUrl = githubServerUrl
+        ? `${githubServerUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+        : null;
       const truncated = [
         marker,
         '### Terraform Plan',
         dirNote,
         `⚠️ Plan output is too large for GitHub comment (${output.length.toLocaleString()} chars).`,
         '',
-        `View the full plan in the [workflow run](${runUrl}).`,
+        runUrl ? `View the full plan in the [workflow run](${runUrl}).` : '',
         '',
         summary || '',
         '',

@@ -207,6 +207,21 @@ describe('format-comment action behavior', () => {
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
+  it('omits a broken workflow link when the GitHub server URL is unavailable', async () => {
+    delete process.env.GITHUB_SERVER_URL;
+    process.env.PLAN = `Plan: 1 to add, 0 to change, 0 to destroy.${'x'.repeat(70000)}`;
+    const github = makeGithub();
+    const core = makeCore();
+
+    await formatComment({ github, context: baseContext, core });
+
+    expect(github.rest.issues.createComment).toHaveBeenCalledTimes(1);
+    const [{ body }] = github.rest.issues.createComment.mock.calls[0];
+    expect(body).toContain('Plan output is too large for GitHub comment');
+    expect(body).not.toContain('[workflow run](undefined/');
+    expect(body).not.toContain('undefined/thekbb/terraform-plan-commenter-action/actions/runs/');
+  });
+
   it('reports API failures through core.setFailed', async () => {
     const github = makeGithub();
     github.rest.issues.listComments.mockRejectedValue(new Error('permission denied'));
