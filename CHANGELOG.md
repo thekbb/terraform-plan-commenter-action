@@ -11,11 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Omit the workflow run link from truncated PR comments when `GITHUB_SERVER_URL` is unavailable
 - Show a neutral placeholder instead of raw refresh noise when filtered plan output is empty
+- Show a neutral summary instead of partial counts when Terraform plan count fragments are malformed
 
 ### Added
 
 - Regression coverage for truncated comments when the GitHub server URL is missing
 - Coverage for all-noise filtered plan output and empty plan rendering
+- Coverage for malformed and mixed-validity Terraform plan count summaries
 
 ## [1.2.1] - 2026-04-11
 
