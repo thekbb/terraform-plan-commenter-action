@@ -154,6 +154,20 @@ describe('stripRefreshNoise', () => {
       'Terraform has compared your real infrastructure against your configuration.'
     );
   });
+
+  it('returns a neutral placeholder when every line is filtered as noise', () => {
+    const plan = [
+      'aws_s3_bucket.site: Refreshing state... [id=site]',
+      'data.aws_iam_policy_document.example: Reading...',
+      'data.aws_iam_policy_document.example: Read complete after 0s [id=123]',
+    ].join('\n');
+
+    const result = stripRefreshNoise(plan);
+
+    expect(result).toBe(
+      'No actionable Terraform plan output to display.'
+    );
+  });
 });
 
 describe('makeMarker', () => {

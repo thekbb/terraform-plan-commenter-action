@@ -68,7 +68,7 @@ const stripRefreshNoise = (plan = '') => {
   }
 
   const cleaned = collapsed.join('\n').trim();
-  return cleaned || plan;
+  return cleaned || 'No actionable Terraform plan output to display.';
 };
 
 /**

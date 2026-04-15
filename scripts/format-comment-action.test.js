@@ -221,7 +221,7 @@ describe('format-comment action behavior', () => {
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
-  it('falls back to "Show Plan" when exit code indicates changes but plan output is empty', async () => {
+  it('shows a neutral placeholder when exit code indicates changes but plan output is empty', async () => {
     process.env.PLAN = '';
     process.env.PLAN_EXIT_CODE = '2';
     const github = makeGithub();
@@ -232,7 +232,9 @@ describe('format-comment action behavior', () => {
     expect(github.rest.issues.createComment).toHaveBeenCalledTimes(1);
     const [{ body }] = github.rest.issues.createComment.mock.calls[0];
     expect(body).toContain('<details><summary>Show Plan</summary>');
-    expect(body).toContain('```terraform\n\n```');
+    expect(body).toContain(
+      'No actionable Terraform plan output to display.'
+    );
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
