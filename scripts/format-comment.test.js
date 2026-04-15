@@ -7,6 +7,11 @@ describe('formatSummary', () => {
     expect(result).toBe('✅ No changes');
   });
 
+  it('returns no changes for exit code 0 when the plan output is empty', () => {
+    const result = formatSummary('', '0');
+    expect(result).toBe('✅ No changes');
+  });
+
   it('returns no changes when plan contains "No changes."', () => {
     const plan = 'No changes. Your infrastructure matches the configuration.';
     const result = formatSummary(plan, '2');
@@ -15,6 +20,11 @@ describe('formatSummary', () => {
 
   it('returns plan failed for exit code 1', () => {
     const result = formatSummary('Error: something went wrong', '1');
+    expect(result).toBe('❌ Plan failed');
+  });
+
+  it('returns plan failed for exit code 1 when the plan output is empty', () => {
+    const result = formatSummary('', '1');
     expect(result).toBe('❌ Plan failed');
   });
 
