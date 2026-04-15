@@ -28,6 +28,12 @@ describe('formatSummary', () => {
     expect(result).toBe('❌ Plan failed');
   });
 
+  it('returns plan failed when exit code 1 includes a no-changes message', () => {
+    const plan = 'No changes. Your infrastructure matches the configuration.';
+    const result = formatSummary(plan, '1');
+    expect(result).toBe('❌ Plan failed');
+  });
+
   it('parses add/change/destroy counts', () => {
     const plan = 'Plan: 3 to add, 1 to change, 2 to destroy.';
     const result = formatSummary(plan, '2');

@@ -15,14 +15,14 @@ const THEMES = {
  * @returns {string} Formatted summary string
  */
 const formatSummary = (plan, exitCode, theme = 'default') => {
-  // Check for no changes
-  if (exitCode === '0' || plan.includes('No changes.')) {
-    return '✅ No changes';
-  }
-
   // Check for errors
   if (exitCode === '1') {
     return '❌ Plan failed';
+  }
+
+  // Check for no changes
+  if (exitCode === '0' || plan.includes('No changes.')) {
+    return '✅ No changes';
   }
 
   const emojis = THEMES[theme] || THEMES.default;
