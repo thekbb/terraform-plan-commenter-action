@@ -290,6 +290,25 @@ describe('format-comment action behavior', () => {
     expect(body).not.toContain('undefined/thekbb/terraform-plan-commenter-action/actions/runs/');
   });
 
+  it('posts a truncated comment without summary details when no plan counts are available', async () => {
+    process.env.PLAN = `Terraform planning output ${'x'.repeat(70000)}`;
+    process.env.PLAN_EXIT_CODE = '2';
+    const github = makeGithub();
+    const core = makeCore();
+
+    await formatComment({ github, context: baseContext, core });
+
+    expect(github.rest.issues.createComment).toHaveBeenCalledTimes(1);
+    const [{ body }] = github.rest.issues.createComment.mock.calls[0];
+    expect(body).toContain('Plan output is too large for GitHub comment');
+    expect(body).toContain(
+      'https://github.com/thekbb/terraform-plan-commenter-action/actions/runs/987654321'
+    );
+    expect(body).not.toContain('<strong>');
+    expect(body).not.toContain('✅ No changes');
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
   it('reports API failures through core.setFailed', async () => {
     const github = makeGithub();
     github.rest.issues.listComments.mockRejectedValue(new Error('permission denied'));
