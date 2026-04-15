@@ -71,6 +71,26 @@ describe('format-comment action behavior', () => {
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
+  it('uses default env values when optional inputs are missing', async () => {
+    delete process.env.PLAN;
+    delete process.env.PLAN_EXIT_CODE;
+    delete process.env.WORKING_DIR;
+    delete process.env.TF_WORKSPACE;
+    delete process.env.SUMMARY_THEME;
+    const github = makeGithub();
+    const core = makeCore();
+
+    await formatComment({ github, context: baseContext, core });
+
+    expect(github.rest.issues.createComment).toHaveBeenCalledTimes(1);
+    const [{ body }] = github.rest.issues.createComment.mock.calls[0];
+    expect(body).toContain('<!-- terraform-plan-comment:root:default -->');
+    expect(body).toContain('<details><summary>✅ No changes</summary>');
+    expect(body).toContain('No actionable Terraform plan output to display.');
+    expect(body).not.toContain('📁 `');
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
   it('removes refresh noise from the posted plan output', async () => {
     process.env.PLAN = [
       'aws_s3_bucket.site: Refreshing state... [id=site]',
