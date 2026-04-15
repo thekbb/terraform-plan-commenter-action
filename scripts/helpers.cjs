@@ -6,6 +6,7 @@ const THEMES = {
   colorblind: { import: '📥', create: '➕', update: '✏️', destroy: '➖' },
   minimal: { import: '[import]', create: '[create]', update: '[update]', destroy: '[destroy]' }
 };
+const UNSUMMARIZABLE_PLAN = 'Plan output could not be summarized';
 
 /**
  * Format summary with emoji badges
@@ -31,6 +32,16 @@ const formatSummary = (plan, exitCode, theme = 'default') => {
   const changeMatch = plan.match(/(\d+) to change/);
   const destroyMatch = plan.match(/(\d+) to destroy/);
   const importMatch = plan.match(/(\d+) to import/);
+  const hasMalformedCount = [
+    /(?<!\d\s)to add/,
+    /(?<!\d\s)to change/,
+    /(?<!\d\s)to destroy/,
+    /(?<!\d\s)to import/,
+  ].some((pattern) => pattern.test(plan));
+
+  if (hasMalformedCount) {
+    return UNSUMMARIZABLE_PLAN;
+  }
 
   if (!addMatch && !changeMatch && !destroyMatch && !importMatch) {
     return '';
@@ -83,4 +94,10 @@ const makeMarker = (workingDir = '.', workspace = 'default') => {
   return `<!-- terraform-plan-comment:${normalizedDir}:${workspace} -->`;
 };
 
-module.exports = { formatSummary, stripRefreshNoise, makeMarker, THEMES };
+module.exports = {
+  formatSummary,
+  makeMarker,
+  stripRefreshNoise,
+  THEMES,
+  UNSUMMARIZABLE_PLAN,
+};

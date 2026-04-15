@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { formatSummary, stripRefreshNoise, makeMarker, THEMES } from './helpers.cjs';
+import {
+  formatSummary,
+  makeMarker,
+  stripRefreshNoise,
+  UNSUMMARIZABLE_PLAN,
+  THEMES,
+} from './helpers.cjs';
 
 describe('formatSummary', () => {
   it('returns no changes for exit code 0', () => {
@@ -93,6 +99,24 @@ describe('formatSummary', () => {
     const plan = 'Some random output without plan counts';
     const result = formatSummary(plan, '2');
     expect(result).toBe('');
+  });
+
+  it('returns a neutral summary when the add count is malformed', () => {
+    const plan = 'Plan: to add, 0 to change, 0 to destroy.';
+    const result = formatSummary(plan, '2');
+    expect(result).toBe(UNSUMMARIZABLE_PLAN);
+  });
+
+  it('returns a neutral summary when the change count is malformed', () => {
+    const plan = 'Plan: 0 to add, x to change, 0 to destroy.';
+    const result = formatSummary(plan, '2');
+    expect(result).toBe(UNSUMMARIZABLE_PLAN);
+  });
+
+  it('returns a neutral summary for mixed valid and invalid fragments', () => {
+    const plan = 'Plan: 2 to add, x to change, to destroy.';
+    const result = formatSummary(plan, '2');
+    expect(result).toBe(UNSUMMARIZABLE_PLAN);
   });
 
   it('handles large numbers', () => {
