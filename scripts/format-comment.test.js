@@ -38,6 +38,30 @@ describe('formatSummary', () => {
     );
   });
 
+  it('parses import-only counts', () => {
+    const plan = 'Plan: 2 to import.';
+    const result = formatSummary(plan, '2');
+    expect(result).toBe('🔵 <strong>import</strong> <code>2</code>');
+  });
+
+  it('parses create-only counts', () => {
+    const plan = 'Plan: 3 to add.';
+    const result = formatSummary(plan, '2');
+    expect(result).toBe('🟢 <strong>create</strong> <code>3</code>');
+  });
+
+  it('parses update-only counts', () => {
+    const plan = 'Plan: 4 to change.';
+    const result = formatSummary(plan, '2');
+    expect(result).toBe('🟡 <strong>update</strong> <code>4</code>');
+  });
+
+  it('parses destroy-only counts', () => {
+    const plan = 'Plan: 5 to destroy.';
+    const result = formatSummary(plan, '2');
+    expect(result).toBe('🔴 <strong>destroy</strong> <code>5</code>');
+  });
+
   it('parses imports', () => {
     const plan = 'Plan: 2 to import, 1 to add, 0 to change, 0 to destroy.';
     const result = formatSummary(plan, '2');
