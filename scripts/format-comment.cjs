@@ -1,4 +1,3 @@
-// Format and post/update Terraform plan as PR comment
 const { formatSummary, stripRefreshNoise, makeMarker } = require('./helpers.cjs');
 
 module.exports = async ({ github, context, core }) => {
@@ -16,10 +15,7 @@ module.exports = async ({ github, context, core }) => {
       core.info('I love it when a plan comes together.');
     }
 
-    // Generate unique marker for this workspace/directory
     const marker = makeMarker(workingDir, workspace);
-
-    // Add working directory if not root
     const dirNote = workingDir !== '.' ? `\n📁 \`${workingDir}\`\n` : '';
 
     const output = [
@@ -37,11 +33,7 @@ module.exports = async ({ github, context, core }) => {
       `*Pusher: @${context.actor}, Action: \`${context.eventName}\`*`
     ].join('\n');
 
-    // GitHub's comment limit is 65,536 characters
-    // We use 65,000 as a safety buffer to account for markdown rendering
     const GITHUB_COMMENT_LIMIT = 65000;
-
-    // Handle truncation for large plans
     const postComment = async (body) => {
       const listCommentsParams = {
         owner: context.repo.owner,
@@ -73,7 +65,6 @@ module.exports = async ({ github, context, core }) => {
       }
     };
 
-    // Handle truncation for oversized plans
     if (output.length > GITHUB_COMMENT_LIMIT) {
       const githubServerUrl = process.env.GITHUB_SERVER_URL;
       const runUrl = githubServerUrl
