@@ -203,12 +203,22 @@ describe('parsePlanSummary', () => {
 
     expect(parsePlanSummary(plan, '2')).toEqual({ kind: 'unparsable' });
   });
+
+  it('returns an empty state when no summary information can be parsed', () => {
+    expect(parsePlanSummary('Terraform planning output without counts', '2')).toEqual({
+      kind: 'empty',
+    });
+  });
 });
 
 describe('renderPlanSummary', () => {
   it('renders failure and no-change states directly', () => {
     expect(renderPlanSummary({ kind: 'failed' })).toBe(PLAN_FAILED_SUMMARY);
     expect(renderPlanSummary({ kind: 'no_changes' })).toBe(NO_CHANGES_SUMMARY);
+  });
+
+  it('renders an empty state as an empty string', () => {
+    expect(renderPlanSummary({ kind: 'empty' })).toBe('');
   });
 
   it('renders themed counts from parsed summary data', () => {
