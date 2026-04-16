@@ -1,39 +1,67 @@
+// @ts-check
+
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
 const args = process.argv.slice(2);
 const checkOnly = args.includes('--check');
-const version = args.find((arg) => !arg.startsWith('-'));
+const versionArg = args.find((arg) => !arg.startsWith('-'));
 
-if (!version) {
+if (!versionArg) {
   console.error('Usage: npm run release[:check] -- <version>');
   process.exit(1);
 }
 
-if (!/^\d+\.\d+\.\d+$/.test(version)) {
-  console.error(`Invalid version "${version}". Use semver like 1.2.3.`);
+if (!/^\d+\.\d+\.\d+$/.test(versionArg)) {
+  console.error(`Invalid version "${versionArg}". Use semver like 1.2.3.`);
   process.exit(1);
 }
 
+const version = versionArg;
 const repoRoot = process.cwd();
 const changelogPath = path.join(repoRoot, 'CHANGELOG.md');
 const packageJsonPath = path.join(repoRoot, 'package.json');
 const packageLockPath = path.join(repoRoot, 'package-lock.json');
 const readmePath = path.join(repoRoot, 'README.md');
 
+/**
+ * @typedef {{ version: string }} VersionedJson
+ * @typedef {VersionedJson & { packages?: { '': VersionedJson } }} PackageLockJson
+ * @typedef {{
+ *   unreleasedBody: string,
+ *   previousVersion: string,
+ *   hasNextVersionSection: boolean
+ * }} ChangelogState
+ * @typedef {{
+ *   updated: string,
+ *   previousVersion: string,
+ *   today: string
+ * }} ChangelogUpdate
+ * @typedef {{ allowManagedFileChanges?: boolean }} EnsureReleaseOptions
+ */
+
+/** @param {string} filePath */
 const readText = (filePath) => fs.readFileSync(filePath, 'utf8');
+/** @param {string} filePath @param {string} text */
 const writeText = (filePath, text) => fs.writeFileSync(filePath, text);
 const managedReleaseFiles = ['CHANGELOG.md', 'README.md', 'package.json', 'package-lock.json'];
 
+/** @param {...string} gitArgs */
 const git = (...gitArgs) => execFileSync('git', gitArgs, {
   cwd: repoRoot,
   encoding: 'utf8',
 }).trim();
 
+/** @param {string} value */
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+/**
+ * @param {string} filePath
+ * @param {string} nextVersion
+ */
 const updateJsonVersion = (filePath, nextVersion) => {
+  /** @type {PackageLockJson} */
   const json = JSON.parse(readText(filePath));
   json.version = nextVersion;
   if (json.packages?.['']) {
@@ -42,6 +70,11 @@ const updateJsonVersion = (filePath, nextVersion) => {
   writeText(filePath, `${JSON.stringify(json, null, 2)}\n`);
 };
 
+/**
+ * @param {string} source
+ * @param {string} nextVersion
+ * @returns {string}
+ */
 const updateReadmeReleaseExamples = (source, nextVersion) => {
   let updated = source;
   const actionVersionPattern = /thekbb\/terraform-plan-commenter-action@v\d+\.\d+\.\d+/g;
@@ -59,6 +92,11 @@ const updateReadmeReleaseExamples = (source, nextVersion) => {
   return updated;
 };
 
+/**
+ * @param {string} source
+ * @param {string} nextVersion
+ * @returns {ChangelogState}
+ */
 const inspectChangelog = (source, nextVersion) => {
   const unreleasedHeader = '## [Unreleased]';
   const unreleasedIndex = source.indexOf(unreleasedHeader);
@@ -90,6 +128,11 @@ const inspectChangelog = (source, nextVersion) => {
   };
 };
 
+/**
+ * @param {string} source
+ * @param {string} nextVersion
+ * @returns {ChangelogUpdate}
+ */
 const updateChangelog = (source, nextVersion) => {
   const { unreleasedBody, previousVersion, hasNextVersionSection } = inspectChangelog(source, nextVersion);
   const unreleasedHeader = '## [Unreleased]';
@@ -134,6 +177,10 @@ const updateChangelog = (source, nextVersion) => {
   return { updated, previousVersion, today };
 };
 
+/**
+ * @param {string} nextVersion
+ * @param {EnsureReleaseOptions} [options]
+ */
 const ensureReleaseState = (nextVersion, { allowManagedFileChanges = false } = {}) => {
   const currentBranch = git('rev-parse', '--abbrev-ref', 'HEAD');
   if (currentBranch !== 'main') {
@@ -160,10 +207,17 @@ const ensureReleaseState = (nextVersion, { allowManagedFileChanges = false } = {
   }
 };
 
+/** @param {string} tagName */
 const tagExists = (tagName) => git('tag', '--list', tagName) === tagName;
 
+/** @param {string} tagName */
 const derefTag = (tagName) => git('rev-parse', `${tagName}^{}`);
 
+/**
+ * @param {string} tagName
+ * @param {string} message
+ * @param {{ force?: boolean }} [options]
+ */
 const ensureTagOnHead = (tagName, message, { force = false } = {}) => {
   const head = git('rev-parse', 'HEAD');
 
@@ -179,7 +233,9 @@ const ensureTagOnHead = (tagName, message, { force = false } = {}) => {
   git('tag', '-a', tagName, '-m', message);
 };
 
+/** @type {VersionedJson} */
 const packageJson = JSON.parse(readText(packageJsonPath));
+/** @type {PackageLockJson} */
 const packageLock = JSON.parse(readText(packageLockPath));
 const currentVersion = packageJson.version;
 const currentLockVersion = packageLock.version;

@@ -1,8 +1,20 @@
+// @ts-check
+
+/**
+ * @typedef {'import' | 'create' | 'update' | 'destroy'} SummaryCountKey
+ * @typedef {'default' | 'colorblind' | 'minimal'} SummaryTheme
+ * @typedef {{ key: SummaryCountKey, label: SummaryCountKey, value: string }} SummaryCount
+ * @typedef {{ key: SummaryCountKey, label: SummaryCountKey, pattern: RegExp, malformedPattern: RegExp }} CountRule
+ * @typedef {{ kind: 'failed' } | { kind: 'no_changes' } | { kind: 'unparsable' } | { kind: 'empty' } | { kind: 'counts', counts: SummaryCount[] }} ParsedSummary
+ */
+
+/** @type {Record<SummaryTheme, Record<SummaryCountKey, string>>} */
 const THEMES = {
   default: { import: '🔵', create: '🟢', update: '🟡', destroy: '🔴' },
   colorblind: { import: '📥', create: '➕', update: '✏️', destroy: '➖' },
   minimal: { import: '[import]', create: '[create]', update: '[update]', destroy: '[destroy]' }
 };
+/** @type {CountRule[]} */
 const COUNT_RULES = [
   { key: 'import', label: 'import', pattern: /(\d+) to import/, malformedPattern: /(?<!\d\s)to import/ },
   { key: 'create', label: 'create', pattern: /(\d+) to add/, malformedPattern: /(?<!\d\s)to add/ },
@@ -13,6 +25,11 @@ const NO_CHANGES_SUMMARY = '✅ No changes';
 const PLAN_FAILED_SUMMARY = '❌ Plan failed';
 const UNSUMMARIZABLE_PLAN = 'Plan output could not be summarized';
 
+/**
+ * @param {string} plan
+ * @param {string} exitCode
+ * @returns {ParsedSummary}
+ */
 const parsePlanSummary = (plan, exitCode) => {
   if (exitCode === '1') {
     return { kind: 'failed' };
@@ -40,6 +57,11 @@ const parsePlanSummary = (plan, exitCode) => {
   return { kind: 'counts', counts };
 };
 
+/**
+ * @param {ParsedSummary} summary
+ * @param {SummaryTheme | string} [theme]
+ * @returns {string}
+ */
 const renderPlanSummary = (summary, theme = 'default') => {
   if (summary.kind === 'failed') {
     return PLAN_FAILED_SUMMARY;
@@ -57,16 +79,30 @@ const renderPlanSummary = (summary, theme = 'default') => {
     return '';
   }
 
-  const emojis = THEMES[theme] || THEMES.default;
-  return summary.counts
+  const themeKey = /** @type {SummaryTheme} */ (
+    Object.prototype.hasOwnProperty.call(THEMES, theme) ? theme : 'default'
+  );
+  const emojis = THEMES[themeKey];
+  const counts = /** @type {SummaryCount[]} */ (summary.counts);
+  return counts
     .map(({ key, label, value }) => `${emojis[key]} <strong>${label}</strong> <code>${value}</code>`)
     .join(' · ');
 };
 
+/**
+ * @param {string} plan
+ * @param {string} exitCode
+ * @param {SummaryTheme | string} [theme]
+ * @returns {string}
+ */
 const formatSummary = (plan, exitCode, theme = 'default') => {
   return renderPlanSummary(parsePlanSummary(plan, exitCode), theme);
 };
 
+/**
+ * @param {string} [plan]
+ * @returns {string}
+ */
 const stripRefreshNoise = (plan = '') => {
   const lines = plan.split('\n');
   const filtered = [];
@@ -88,6 +124,11 @@ const stripRefreshNoise = (plan = '') => {
   return cleaned || 'No actionable Terraform plan output to display.';
 };
 
+/**
+ * @param {string} [workingDir]
+ * @param {string} [workspace]
+ * @returns {string}
+ */
 const makeMarker = (workingDir = '.', workspace = 'default') => {
   const normalizedDir = workingDir === '.' ? 'root' : workingDir.replace(/\//g, '-');
   return `<!-- terraform-plan-comment:${normalizedDir}:${workspace} -->`;

@@ -1,5 +1,42 @@
+// @ts-check
+
 const { formatSummary, stripRefreshNoise, makeMarker } = require('./helpers.cjs');
 
+/**
+ * @typedef {{ id: number, user: { type: string }, body: string }} IssueComment
+ * @typedef {{
+ *   owner: string,
+ *   repo: string
+ * }} RepoRef
+ * @typedef {{
+ *   actor: string,
+ *   eventName: string,
+ *   issue: { number: number },
+ *   repo: RepoRef,
+ *   runId: number
+ * }} ActionContext
+ * @typedef {{
+ *   info(message: string): void,
+ *   setFailed(message: string): void
+ * }} ActionCore
+ * @typedef {{
+ *   rest: {
+ *     issues: {
+ *       listComments(params: { owner: string, repo: string, issue_number: number }): Promise<{ data: IssueComment[] }>,
+ *       createComment(params: { owner: string, repo: string, issue_number: number, body: string }): Promise<unknown>,
+ *       updateComment(params: { owner: string, repo: string, comment_id: number, body: string }): Promise<unknown>
+ *     }
+ *   },
+ *   paginate?: (
+ *     fn: (params: { owner: string, repo: string, issue_number: number }) => Promise<{ data: IssueComment[] }>,
+ *     params: { owner: string, repo: string, issue_number: number }
+ *   ) => Promise<IssueComment[]>
+ * }} GithubClient
+ */
+
+/**
+ * @param {{ github: GithubClient, context: ActionContext, core: ActionCore }} options
+ */
 module.exports = async ({ github, context, core }) => {
   const plan = process.env.PLAN || '';
   const exitCode = process.env.PLAN_EXIT_CODE || '0';
@@ -34,6 +71,10 @@ module.exports = async ({ github, context, core }) => {
     ].join('\n');
 
     const GITHUB_COMMENT_LIMIT = 65000;
+    /**
+     * @param {string} body
+     * @returns {Promise<void>}
+     */
     const postComment = async (body) => {
       const listCommentsParams = {
         owner: context.repo.owner,
@@ -44,7 +85,7 @@ module.exports = async ({ github, context, core }) => {
         ? await github.paginate(github.rest.issues.listComments, listCommentsParams)
         : (await github.rest.issues.listComments(listCommentsParams)).data;
 
-      const botComment = comments.find(comment =>
+      const botComment = comments.find((comment) =>
         comment.user.type === 'Bot' && comment.body.includes(marker)
       );
 
@@ -90,6 +131,7 @@ module.exports = async ({ github, context, core }) => {
     await postComment(output);
 
   } catch (error) {
-    core.setFailed(`Failed to post PR comment: ${error.message}`);
+    const message = error instanceof Error ? error.message : String(error);
+    core.setFailed(`Failed to post PR comment: ${message}`);
   }
 };

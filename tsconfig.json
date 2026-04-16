@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "maxNodeModuleJsDepth": 0,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "noEmit": true,
+    "strict": true,
+    "target": "ES2022"
+  },
+  "include": [
+    "eslint.config.js",
+    "scripts/format-comment.cjs",
+    "scripts/helpers.cjs",
+    "scripts/release.mjs",
+    "vitest.config.js"
+  ],
+  "exclude": [
+    "coverage",
+    "docs",
+    "node_modules"
+  ]
+}
