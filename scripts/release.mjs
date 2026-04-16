@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
+/** @type {string[]} */
 const args = process.argv.slice(2);
 const checkOnly = args.includes('--check');
 const versionArg = args.find((arg) => !arg.startsWith('-'));
