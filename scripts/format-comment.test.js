@@ -188,6 +188,12 @@ describe('parsePlanSummary', () => {
     expect(parsePlanSummary('', '1')).toEqual({ kind: 'failed' });
   });
 
+  it('returns an unparsable state for malformed count fragments', () => {
+    expect(parsePlanSummary('Plan: 2 to add, x to change, to destroy.', '2')).toEqual({
+      kind: 'unparsable',
+    });
+  });
+
   it('returns structured counts in display order', () => {
     const plan = 'Plan: 2 to import, 1 to add, 3 to change, 4 to destroy.';
 
@@ -200,12 +206,6 @@ describe('parsePlanSummary', () => {
         { key: 'destroy', label: 'destroy', value: '4' },
       ],
     });
-  });
-
-  it('returns an unparsable state for malformed count fragments', () => {
-    const plan = 'Plan: 2 to add, x to change, to destroy.';
-
-    expect(parsePlanSummary(plan, '2')).toEqual({ kind: 'unparsable' });
   });
 
   it('returns an empty state when no summary information can be parsed', () => {
