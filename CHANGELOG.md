@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-04-16
+
 ### Fixed
 
 - Omit the workflow run link from truncated PR comments when `GITHUB_SERVER_URL` is unavailable
@@ -78,7 +80,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graceful handling of large plans with truncation
 - Comprehensive test coverage
 
-[Unreleased]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.2.0...1.2.1
 [1.2.0]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.0.0...v1.1.0
