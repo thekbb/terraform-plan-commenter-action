@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   formatSummary,
   makeMarker,
+  NO_CHANGES_SUMMARY,
+  parsePlanSummary,
+  PLAN_FAILED_SUMMARY,
+  renderPlanSummary,
   stripRefreshNoise,
   UNSUMMARIZABLE_PLAN,
   THEMES,
@@ -176,6 +180,60 @@ describe('THEMES', () => {
       update: '[update]',
       destroy: '[destroy]'
     });
+  });
+});
+
+describe('parsePlanSummary', () => {
+  it('returns structured counts in display order', () => {
+    const plan = 'Plan: 2 to import, 1 to add, 3 to change, 4 to destroy.';
+
+    expect(parsePlanSummary(plan, '2')).toEqual({
+      kind: 'counts',
+      counts: [
+        { key: 'import', label: 'import', value: '2' },
+        { key: 'create', label: 'create', value: '1' },
+        { key: 'update', label: 'update', value: '3' },
+        { key: 'destroy', label: 'destroy', value: '4' },
+      ],
+    });
+  });
+
+  it('returns an unparsable state for malformed count fragments', () => {
+    const plan = 'Plan: 2 to add, x to change, to destroy.';
+
+    expect(parsePlanSummary(plan, '2')).toEqual({ kind: 'unparsable' });
+  });
+
+  it('returns an empty state when no summary information can be parsed', () => {
+    expect(parsePlanSummary('Terraform planning output without counts', '2')).toEqual({
+      kind: 'empty',
+    });
+  });
+});
+
+describe('renderPlanSummary', () => {
+  it('renders failure and no-change states directly', () => {
+    expect(renderPlanSummary({ kind: 'failed' })).toBe(PLAN_FAILED_SUMMARY);
+    expect(renderPlanSummary({ kind: 'no_changes' })).toBe(NO_CHANGES_SUMMARY);
+  });
+
+  it('renders an empty state as an empty string', () => {
+    expect(renderPlanSummary({ kind: 'empty' })).toBe('');
+  });
+
+  it('renders themed counts from parsed summary data', () => {
+    const summary = {
+      kind: 'counts',
+      counts: [
+        { key: 'create', label: 'create', value: '1' },
+        { key: 'destroy', label: 'destroy', value: '2' },
+      ],
+    };
+
+    expect(renderPlanSummary(summary, 'minimal')).toBe(
+      '[create] <strong>create</strong> <code>1</code> · ' +
+      '[destroy] <strong>destroy</strong> <code>2</code>'
+    );
   });
 });
 
