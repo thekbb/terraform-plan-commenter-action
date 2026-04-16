@@ -194,6 +194,12 @@ describe('parsePlanSummary', () => {
     });
   });
 
+  it('returns an empty state when no summary information can be parsed', () => {
+    expect(parsePlanSummary('Terraform planning output without counts', '2')).toEqual({
+      kind: 'empty',
+    });
+  });
+
   it('returns structured counts in display order', () => {
     const plan = 'Plan: 2 to import, 1 to add, 3 to change, 4 to destroy.';
 
@@ -208,11 +214,6 @@ describe('parsePlanSummary', () => {
     });
   });
 
-  it('returns an empty state when no summary information can be parsed', () => {
-    expect(parsePlanSummary('Terraform planning output without counts', '2')).toEqual({
-      kind: 'empty',
-    });
-  });
 });
 
 describe('renderPlanSummary', () => {

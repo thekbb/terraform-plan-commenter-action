@@ -322,4 +322,18 @@ describe('format-comment action behavior', () => {
     expect(github.rest.issues.createComment).not.toHaveBeenCalled();
     expect(github.rest.issues.updateComment).not.toHaveBeenCalled();
   });
+
+  it('stringifies non-Error API failures through core.setFailed', async () => {
+    const github = makeGithub();
+    github.rest.issues.listComments.mockRejectedValue('permission denied');
+    const core = makeCore();
+
+    await formatComment({ github, context: baseContext, core });
+
+    expect(core.setFailed).toHaveBeenCalledWith(
+      'Failed to post PR comment: permission denied'
+    );
+    expect(github.rest.issues.createComment).not.toHaveBeenCalled();
+    expect(github.rest.issues.updateComment).not.toHaveBeenCalled();
+  });
 });
