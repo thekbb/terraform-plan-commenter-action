@@ -184,6 +184,10 @@ describe('THEMES', () => {
 });
 
 describe('parsePlanSummary', () => {
+  it('returns a failed state for exit code 1', () => {
+    expect(parsePlanSummary('', '1')).toEqual({ kind: 'failed' });
+  });
+
   it('returns structured counts in display order', () => {
     const plan = 'Plan: 2 to import, 1 to add, 3 to change, 4 to destroy.';
 
