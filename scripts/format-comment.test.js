@@ -222,6 +222,10 @@ describe('renderPlanSummary', () => {
     expect(renderPlanSummary({ kind: 'no_changes' })).toBe(NO_CHANGES_SUMMARY);
   });
 
+  it('renders a failed state directly', () => {
+    expect(renderPlanSummary({ kind: 'failed' })).toBe(PLAN_FAILED_SUMMARY);
+  });
+
   it('renders an empty state as an empty string', () => {
     expect(renderPlanSummary({ kind: 'empty' })).toBe('');
   });
