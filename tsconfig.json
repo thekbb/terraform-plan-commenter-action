@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "lib": ["ES2024"],
+    "maxNodeModuleJsDepth": 0,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2024",
+    "types": ["node"]
+  },
+  "include": [
+    "eslint.config.js",
+    "scripts/format-comment.cjs",
+    "scripts/helpers.cjs",
+    "scripts/release.mjs",
+    "vitest.config.js"
+  ],
+  "exclude": [
+    "coverage",
+    "docs",
+    "node_modules"
+  ]
+}

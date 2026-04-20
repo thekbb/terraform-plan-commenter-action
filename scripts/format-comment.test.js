@@ -184,6 +184,22 @@ describe('THEMES', () => {
 });
 
 describe('parsePlanSummary', () => {
+  it('returns a failed state for exit code 1', () => {
+    expect(parsePlanSummary('', '1')).toEqual({ kind: 'failed' });
+  });
+
+  it('returns an unparsable state for malformed count fragments', () => {
+    expect(parsePlanSummary('Plan: 2 to add, x to change, to destroy.', '2')).toEqual({
+      kind: 'unparsable',
+    });
+  });
+
+  it('returns an empty state when no summary information can be parsed', () => {
+    expect(parsePlanSummary('Terraform planning output without counts', '2')).toEqual({
+      kind: 'empty',
+    });
+  });
+
   it('returns structured counts in display order', () => {
     const plan = 'Plan: 2 to import, 1 to add, 3 to change, 4 to destroy.';
 
@@ -198,23 +214,16 @@ describe('parsePlanSummary', () => {
     });
   });
 
-  it('returns an unparsable state for malformed count fragments', () => {
-    const plan = 'Plan: 2 to add, x to change, to destroy.';
-
-    expect(parsePlanSummary(plan, '2')).toEqual({ kind: 'unparsable' });
-  });
-
-  it('returns an empty state when no summary information can be parsed', () => {
-    expect(parsePlanSummary('Terraform planning output without counts', '2')).toEqual({
-      kind: 'empty',
-    });
-  });
 });
 
 describe('renderPlanSummary', () => {
   it('renders failure and no-change states directly', () => {
     expect(renderPlanSummary({ kind: 'failed' })).toBe(PLAN_FAILED_SUMMARY);
     expect(renderPlanSummary({ kind: 'no_changes' })).toBe(NO_CHANGES_SUMMARY);
+  });
+
+  it('renders a failed state directly', () => {
+    expect(renderPlanSummary({ kind: 'failed' })).toBe(PLAN_FAILED_SUMMARY);
   });
 
   it('renders an empty state as an empty string', () => {
