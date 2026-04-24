@@ -1,6 +1,7 @@
 # Contributing
 
-Thanks for your interest in contributing!
+Thanks for your interest in contributing! If you have questions, aren't sure where to start, or are stuck,
+reach out! I will help.
 
 ## Development Setup
 
@@ -40,7 +41,7 @@ npm run test:watch          # Watch mode
 ## Making Changes
 
 1. Fork the repository
-1. Create a feature branch (`git checkout -b feature/my-change`)
+1. Create a feature branch (`git checkout -b my-change`)
 1. Make your changes
 1. Run tests and lint (`npm test && npm run lint`)
 1. Commit with a descriptive message
