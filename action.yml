@@ -43,9 +43,6 @@ outputs:
   has-changes:
     description: 'Whether the plan has changes (true/false)'
     value: ${{ steps.plan.outputs.exitcode == '2' }}
-  plan-stdout:
-    description: 'Standard output from terraform plan'
-    value: ${{ steps.plan.outputs.stdout }}
 
 runs:
   using: 'composite'
@@ -75,24 +72,23 @@ runs:
       run: |
         set +e
         set -o pipefail
+        plan_output_file="$(mktemp "${RUNNER_TEMP:-/tmp}/terraform-plan-comment.XXXXXX")"
+
         # Capture workspace
         workspace=$(terraform workspace show)
-        echo "workspace=$workspace" >> $GITHUB_OUTPUT
+        echo "workspace=$workspace" >> "$GITHUB_OUTPUT"
+        echo "stdout_path=$plan_output_file" >> "$GITHUB_OUTPUT"
+
         # Run plan
-        terraform plan -no-color -input=false -detailed-exitcode 2>&1 | tee /tmp/plan_output.txt
+        terraform plan -no-color -input=false -detailed-exitcode 2>&1 | tee "$plan_output_file"
         exitcode=${PIPESTATUS[0]}
-        echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
-        {
-          echo 'stdout<<TFPLAN_EOF'
-          cat /tmp/plan_output.txt
-          echo 'TFPLAN_EOF'
-        } >> $GITHUB_OUTPUT
+        echo "exitcode=$exitcode" >> "$GITHUB_OUTPUT"
 
     - name: Post PR Comment
       if: github.event_name == 'pull_request'
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
-        PLAN: ${{ steps.plan.outputs.stdout }}
+        PLAN_FILE: ${{ steps.plan.outputs.stdout_path }}
         PLAN_EXIT_CODE: ${{ steps.plan.outputs.exitcode }}
         WORKING_DIR: ${{ inputs.working-directory }}
         TF_WORKSPACE: ${{ steps.plan.outputs.workspace }}
@@ -112,3 +108,10 @@ runs:
       run: |
         echo "::error::Terraform plan failed"
         exit 1
+
+    - name: Clean up temporary plan file
+      if: always() && steps.plan.outputs.stdout_path != ''
+      shell: bash
+      env:
+        PLAN_FILE: ${{ steps.plan.outputs.stdout_path }}
+      run: rm -f "$PLAN_FILE"

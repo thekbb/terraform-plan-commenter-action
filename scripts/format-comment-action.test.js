@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import formatComment from './format-comment.cjs';
 
@@ -73,6 +76,7 @@ describe('format-comment action behavior', () => {
 
   it('uses default env values when optional inputs are missing', async () => {
     delete process.env.PLAN;
+    delete process.env.PLAN_FILE;
     delete process.env.PLAN_EXIT_CODE;
     delete process.env.WORKING_DIR;
     delete process.env.TF_WORKSPACE;
@@ -89,6 +93,27 @@ describe('format-comment action behavior', () => {
     expect(body).toContain('No actionable Terraform plan output to display.');
     expect(body).not.toContain('📁 `');
     expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
+  it('reads plan output from PLAN_FILE when provided', async () => {
+    delete process.env.PLAN;
+    const planPath = path.join(
+      os.tmpdir(),
+      `terraform-plan-comment-action-${process.pid}-${Date.now()}.txt`
+    );
+    fs.writeFileSync(planPath, 'Plan: 2 to add, 0 to change, 0 to destroy.');
+    process.env.PLAN_FILE = planPath;
+    const github = makeGithub();
+    const core = makeCore();
+
+    await formatComment({ github, context: baseContext, core });
+
+    expect(github.rest.issues.createComment).toHaveBeenCalledTimes(1);
+    const [{ body }] = github.rest.issues.createComment.mock.calls[0];
+    expect(body).toContain('🟢 <strong>create</strong> <code>2</code>');
+    expect(core.setFailed).not.toHaveBeenCalled();
+
+    fs.unlinkSync(planPath);
   });
 
   it('removes refresh noise from the posted plan output', async () => {
@@ -332,6 +357,24 @@ describe('format-comment action behavior', () => {
 
     expect(core.setFailed).toHaveBeenCalledWith(
       'Failed to post PR comment: permission denied'
+    );
+    expect(github.rest.issues.createComment).not.toHaveBeenCalled();
+    expect(github.rest.issues.updateComment).not.toHaveBeenCalled();
+  });
+
+  it('reports missing plan files through core.setFailed', async () => {
+    delete process.env.PLAN;
+    process.env.PLAN_FILE = path.join(
+      os.tmpdir(),
+      `terraform-plan-comment-action-missing-${process.pid}.txt`
+    );
+    const github = makeGithub();
+    const core = makeCore();
+
+    await formatComment({ github, context: baseContext, core });
+
+    expect(core.setFailed).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to post PR comment:')
     );
     expect(github.rest.issues.createComment).not.toHaveBeenCalled();
     expect(github.rest.issues.updateComment).not.toHaveBeenCalled();
