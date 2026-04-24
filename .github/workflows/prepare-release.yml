@@ -1,0 +1,76 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version, for example 2.0.0'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: '24.14.1'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint Markdown
+        run: npm run lint:md
+
+      - name: Run tests
+        run: npm test
+
+      - name: Validate release metadata
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: npm run release:check -- "$RELEASE_VERSION"
+
+      - name: Prepare release files
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: npm run release:prepare -- "$RELEASE_VERSION"
+
+      - name: Create release candidate pull request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ secrets.RELEASE_PREP_PAT != '' && secrets.RELEASE_PREP_PAT || github.token }}
+          branch: release-candidate/v${{ inputs.version }}
+          delete-branch: true
+          title: Prepare v${{ inputs.version }} release
+          commit-message: Prepare v${{ inputs.version }} release
+          body: |
+            Prepares the release metadata for v${{ inputs.version }} from `main`.
+
+            This PR is generated on Linux and is the exact commit that should be
+            reviewed, merged, and then tagged locally with GPG before the draft
+            release verification flow runs.
+          add-paths: |
+            CHANGELOG.md
+            README.md
+            package.json
+            package-lock.json

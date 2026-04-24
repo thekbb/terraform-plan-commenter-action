@@ -7,10 +7,11 @@ import path from 'node:path';
 /** @type {string[]} */
 const args = process.argv.slice(2);
 const checkOnly = args.includes('--check');
+const prepareOnly = args.includes('--prepare');
 const versionArg = args.find((arg) => !arg.startsWith('-'));
 
 if (!versionArg) {
-  console.error('Usage: npm run release[:check] -- <version>');
+  console.error('Usage: npm run release[:check] -- [--prepare] <version>');
   process.exit(1);
 }
 
@@ -304,11 +305,16 @@ writeText(readmePath, nextReadme);
 updateJsonVersion(packageJsonPath, version);
 updateJsonVersion(packageLockPath, version);
 
+if (prepareOnly) {
+  console.log(`Prepared release files for v${version} in the working tree.`);
+  process.exit(0);
+}
+
 git('add', 'CHANGELOG.md', 'README.md', 'package.json', 'package-lock.json');
 try {
   git('diff', '--cached', '--quiet');
 } catch {
-  git('commit', '-m', `Release v${version}`);
+  git('commit', '-m', `Prepare v${version} release`);
 }
 
 ensureTagOnHead(`v${version}`, `Release v${version}`);
