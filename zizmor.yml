@@ -1,0 +1,4 @@
+rules:
+  impostor-commit:
+    ignore:
+      - codeql.yml

@@ -49,3 +49,4 @@ jobs:
           advanced-security: false
           annotations: true
           persona: regular
+          config: zizmor.yml
