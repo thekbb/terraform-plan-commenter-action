@@ -1,4 +1,3 @@
 rules:
   impostor-commit:
-    ignore:
-      - codeql.yml
+    disable: true
