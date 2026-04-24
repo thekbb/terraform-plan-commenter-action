@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Keep the full Terraform plan in a temporary file for comment generation
+  instead of transporting it through GitHub Actions step outputs
+
+### Removed
+
+- Remove the `plan-stdout` action output from the public interface
+
+### Notes
+
+- This is intended for `2.0.0` because removing `plan-stdout` is a breaking
+  change for any workflow that consumed the raw plan output directly
+
 ## [1.2.2] - 2026-04-16
 
 ### Fixed
