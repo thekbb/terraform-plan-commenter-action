@@ -88,7 +88,6 @@ Use `init-args` and `plan-args` only for trusted, repo-controlled values.
 | ------ | ----------- |
 | `plan-exit-code` | Exit code from terraform plan (`0`=no changes, `1`=error, `2`=changes) |
 | `has-changes` | Whether the plan has changes (`true`/`false`) |
-| `plan-stdout` | Standard output from terraform plan |
 
 ## Examples
 

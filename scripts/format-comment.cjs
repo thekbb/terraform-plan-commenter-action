@@ -1,5 +1,6 @@
 // @ts-check
 
+const fs = require('node:fs');
 const { formatSummary, stripRefreshNoise, makeMarker } = require('./helpers.cjs');
 
 /**
@@ -38,13 +39,15 @@ const { formatSummary, stripRefreshNoise, makeMarker } = require('./helpers.cjs'
  * @param {{ github: GithubClient, context: ActionContext, core: ActionCore }} options
  */
 module.exports = async ({ github, context, core }) => {
-  const plan = process.env.PLAN || '';
   const exitCode = process.env.PLAN_EXIT_CODE || '0';
   const workingDir = process.env.WORKING_DIR || '.';
   const workspace = process.env.TF_WORKSPACE || 'default';
   const theme = process.env.SUMMARY_THEME || 'default';
 
   try {
+    const plan = process.env.PLAN_FILE
+      ? fs.readFileSync(process.env.PLAN_FILE, 'utf8')
+      : (process.env.PLAN || '');
     const summary = formatSummary(plan, exitCode, theme);
     const displayPlan = stripRefreshNoise(plan);
 
