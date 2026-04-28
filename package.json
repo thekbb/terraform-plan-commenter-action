@@ -18,7 +18,7 @@
     "release": "node scripts/release.mjs"
   },
   "devDependencies": {
-    "@types/node": "^24.12.2",
+    "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^9.39.2",
     "markdownlint-cli": "^0.48.0",
