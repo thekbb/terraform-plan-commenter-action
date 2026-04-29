@@ -7,19 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Keep the full Terraform plan in a temporary file for comment generation
-  instead of transporting it through GitHub Actions step outputs
+## [2.0.0] - 2026-04-29
 
 ### Removed
 
 - Remove the `plan-stdout` action output from the public interface
 
+### Changed
+
+- Keep the full Terraform plan in a temporary file for comment generation
+  instead of transporting it through GitHub Actions step outputs
+- Add draft-release verification from the signed tag before publication
+- Publish verified draft releases only after re-checking the signed tag,
+  release metadata, and draft-release state
+- Standardize CI and package metadata on Node.js `24.14.1`
+- Update docs to describe the workflow-driven release process and composite
+  action release model
+- Prevent Dependabot from proposing Node 25 major updates while continuing to
+  track the latest Node 24 line
+
+### Added
+
+- Workflow linting with `actionlint` and `zizmor`
+- Dependency review on pull requests
+- CodeQL analysis for JavaScript
+- CI timeout and concurrency controls
+- Add JavaScript typechecking
+- Additional regression coverage for parser edge cases and non-`Error` failures
+
 ### Notes
 
-- This is intended for `2.0.0` because removing `plan-stdout` is a breaking
-  change for any workflow that consumed the raw plan output directly
+- This is a breaking release because workflows that consumed `plan-stdout`
+  directly must stop depending on that removed output
 
 ## [1.2.2] - 2026-04-16
 
@@ -94,7 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graceful handling of large plans with truncation
 - Comprehensive test coverage
 
-[Unreleased]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.2.2...HEAD
+[Unreleased]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.2.2...v2.0.0
 [1.2.2]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.1.0...v1.2.0
