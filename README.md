@@ -328,21 +328,30 @@ Fingerprint:
 353A AFB2 1CE8 1D84 3634 AD3E DE52 EEA6 AF0D 8779
 ```
 
-To verify a release tag locally:
+To verify a published release end to end:
+
+```bash
+./verify-release.sh --tag v2.0.0
+```
+
+That script checks the signed annotated tag, the tagged commit's reachability
+from `origin/main`, and the published GitHub release's immutable state.
+
+If you prefer to verify the tag manually:
 
 ```bash
 gpg --import keys/release-signing-key.asc
 gpg --show-keys --fingerprint keys/release-signing-key.asc
 git fetch origin --tags --force
-git verify-tag v1.2.1
-git rev-parse v1.2.1^{commit}
+git verify-tag v2.0.0
+git rev-parse v2.0.0^{commit}
 ```
 
 You can also verify that the release tag points to code that is on `main`:
 
 ```bash
 git fetch origin main --tags --force
-git merge-base --is-ancestor "$(git rev-parse v1.2.1^{commit})" origin/main
+git merge-base --is-ancestor "$(git rev-parse v2.0.0^{commit})" origin/main
 ```
 
 If that command exits successfully, the release commit is reachable from
