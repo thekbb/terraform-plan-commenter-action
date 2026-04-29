@@ -275,6 +275,8 @@ release tags with movable major tags, see
 - **Signed release tags** - release tags are signed with the published project GPG key
 - **Published release signing key** - import [`keys/release-signing-key.asc`](keys/release-signing-key.asc) before
   verifying a tag
+- **Release verification before publication** - draft releases are verified from
+  the signed tag before they are made public
 - **Moving major tag is explicit** - `@v1` is intentionally movable and should not be treated as an immutable
   reference
 
@@ -291,6 +293,29 @@ If you prefer a release-specific tag in `uses:`, pin to the current release inst
   with:
     init-args: '-lockfile=readonly'
 ```
+
+## Release Process
+
+This repository uses a workflow-driven release flow while keeping release tags
+local and GPG-signed by the maintainer.
+
+The release path is:
+
+1. `Prepare Release` runs from `main` and opens or updates a
+   `release-candidate/vX.Y.Z` pull request.
+2. The release-candidate pull request is reviewed and merged.
+3. The maintainer creates and pushes the signed `vX.Y.Z` tag from the merged
+   `main` commit and moves the major tag such as `v1`.
+4. The maintainer creates a draft GitHub release for `vX.Y.Z`.
+5. `Verify Draft Release` is run from the `vX.Y.Z` tag and verifies the signed
+   tag, release metadata, and draft-release state.
+6. `Publish Verified Release` re-checks those release invariants and then
+   publishes the draft release.
+
+This repository publishes a [composite action](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action),
+so it does not produce a generated release artifact. The release verification
+flow is therefore focused on signed tags and source-release integrity rather
+than artifact attestation.
 
 ## Verify a Release
 
@@ -312,6 +337,16 @@ git fetch origin --tags --force
 git verify-tag v1.2.1
 git rev-parse v1.2.1^{commit}
 ```
+
+You can also verify that the release tag points to code that is on `main`:
+
+```bash
+git fetch origin main --tags --force
+git merge-base --is-ancestor "$(git rev-parse v1.2.1^{commit})" origin/main
+```
+
+If that command exits successfully, the release commit is reachable from
+`origin/main`.
 
 For an additional cross-check, you can confirm the same public key is published on `keys.openpgp.org` for
 `kevin@thekbb.net`:

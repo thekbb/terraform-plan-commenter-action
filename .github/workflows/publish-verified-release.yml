@@ -1,0 +1,111 @@
+name: Publish Verified Release
+
+on:
+  repository_dispatch:
+    types: [publish_verified_release]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Validate dispatch payload
+        env:
+          TAG: ${{ github.event.client_payload.tag }}
+          VERIFIED_REF: ${{ github.event.client_payload.verified_ref }}
+          VERIFIED_RUN_ID: ${{ github.event.client_payload.verified_run_id }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a semver tag like v2.0.0, got: $TAG"
+            exit 1
+          fi
+
+          if [[ "$VERIFIED_REF" != "refs/tags/$TAG" ]]; then
+            echo "Dispatch payload ref $VERIFIED_REF does not match $TAG."
+            exit 1
+          fi
+
+          if [[ -z "$VERIFIED_RUN_ID" ]]; then
+            echo "Missing verified_run_id in dispatch payload."
+            exit 1
+          fi
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.client_payload.tag }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: '24.14.1'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Import release signing key
+        run: gpg --import keys/release-signing-key.asc
+
+      - name: Verify signed tag and release metadata
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PREP_PAT != '' && secrets.RELEASE_PREP_PAT || github.token }}
+          TAG: ${{ github.event.client_payload.tag }}
+        run: |
+          version="${TAG#v}"
+
+          if [[ "$(git cat-file -t "$TAG")" != "tag" ]]; then
+            echo "Expected $TAG to be an annotated tag."
+            exit 1
+          fi
+
+          git tag -v "$TAG"
+
+          tag_commit="$(git rev-list -n 1 "$TAG")"
+          head_commit="$(git rev-parse HEAD)"
+
+          if [[ "$tag_commit" != "$head_commit" ]]; then
+            echo "Checked-out commit does not match $TAG."
+            exit 1
+          fi
+
+          git fetch origin main --depth=1
+          if ! git merge-base --is-ancestor "$tag_commit" origin/main; then
+            echo "Tagged commit $tag_commit is not reachable from origin/main."
+            exit 1
+          fi
+
+          package_version="$(node -p "require('./package.json').version")"
+          lock_version="$(node -p "require('./package-lock.json').version")"
+
+          if [[ "$package_version" != "$version" ]]; then
+            echo "package.json version ($package_version) does not match $TAG."
+            exit 1
+          fi
+
+          if [[ "$lock_version" != "$version" ]]; then
+            echo "package-lock.json version ($lock_version) does not match $TAG."
+            exit 1
+          fi
+
+          if ! grep -Fq "## [$version] - " CHANGELOG.md; then
+            echo "CHANGELOG.md does not contain a release section for $version."
+            exit 1
+          fi
+
+          is_draft="$(gh release view "$TAG" --json isDraft --jq '.isDraft')"
+          if [[ "$is_draft" != "true" ]]; then
+            echo "Expected a draft release for $TAG before publishing."
+            exit 1
+          fi
+
+      - name: Publish verified release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PREP_PAT != '' && secrets.RELEASE_PREP_PAT || github.token }}
+          TAG: ${{ github.event.client_payload.tag }}
+        run: gh release edit "$TAG" --draft=false

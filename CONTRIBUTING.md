@@ -49,23 +49,37 @@ npm run test:watch          # Watch mode
 
 ## Releases
 
-Use the npm release scripts from a clean `main` branch:
+Use the workflow-driven release flow from a clean `main` branch.
+
+Before you start, make sure `main` already contains any changelog, code, or
+documentation changes you want in the release.
+
+To sanity-check the next release version locally:
 
 ```bash
 npm run release:check -- 1.2.0
-npm run release -- 1.2.0
 ```
 
-`release:check` validates the changelog and planned release metadata without
-changing git state. `release` updates `CHANGELOG.md`, README semantic-version
-examples, `package.json`, and `package-lock.json`, creates a release commit,
-tags `vX.Y.Z`, moves the major tag (for example `v1`), and pushes the branch
-and tags to `origin`.
+The normal release path is:
+
+1. Run the `Prepare Release` workflow, which always prepares the release from `main`, with the target version.
+2. Review and merge the generated `release-candidate/vX.Y.Z` pull request.
+3. Create and push the signed `vX.Y.Z` tag locally from the merged `main` commit.
+4. Move the major tag (for example `v1`) locally to the same commit and push it.
+5. Create a draft GitHub release for `vX.Y.Z`.
+6. Run `Verify Draft Release` from the `vX.Y.Z` tag, with `tag=vX.Y.Z`.
+7. Let `Publish Verified Release` publish the draft release after the tag and
+   release metadata are re-verified.
+
+`release:check` still validates changelog structure and release metadata
+locally. `release:prepare` is intended for the GitHub workflow that prepares
+the release-candidate pull request.
 
 ## No Build Step Required
 
-This action uses `github-script` and plain JavaScript, so there's no build step.
-Just commit your changes to the JS files directly.
+This repository publishes a [composite action](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action),
+so there is no separate build step or bundled release artifact. Just commit
+your changes to the source files directly.
 
 ## Code Style
 
