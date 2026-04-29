@@ -11,6 +11,8 @@ updates:
       prefix: "deps"
     versioning-strategy: "increase-if-necessary"
     ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "vitest"
         update-types: ["version-update:semver-major"]
       - dependency-name: "eslint"
