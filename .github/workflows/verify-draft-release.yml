@@ -1,0 +1,135 @@
+name: Verify Draft Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag, for example v2.0.0'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Validate workflow context
+        env:
+          TAG: ${{ inputs.tag }}
+          GITHUB_REF_VALUE: ${{ github.ref }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a semver tag like v2.0.0, got: $TAG"
+            exit 1
+          fi
+
+          if [[ "$GITHUB_REF_VALUE" != "refs/tags/$TAG" ]]; then
+            echo "Run this workflow from the $TAG tag, not $GITHUB_REF_VALUE."
+            echo "In the GitHub UI, choose $TAG in the Run workflow branch/tag dropdown."
+            exit 1
+          fi
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: '24.14.1'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint Markdown
+        run: npm run lint:md
+
+      - name: Run tests
+        run: npm test
+
+      - name: Import release signing key
+        run: gpg --import keys/release-signing-key.asc
+
+      - name: Verify signed release tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [[ "$(git cat-file -t "$TAG")" != "tag" ]]; then
+            echo "Expected $TAG to be an annotated tag."
+            exit 1
+          fi
+
+          git tag -v "$TAG"
+
+      - name: Verify release commit and metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          version="${TAG#v}"
+          tag_commit="$(git rev-list -n 1 "$TAG")"
+          head_commit="$(git rev-parse HEAD)"
+
+          if [[ "$tag_commit" != "$head_commit" ]]; then
+            echo "Checked-out commit does not match $TAG."
+            exit 1
+          fi
+
+          git fetch origin main --depth=1
+          if ! git merge-base --is-ancestor "$tag_commit" origin/main; then
+            echo "Tagged commit $tag_commit is not reachable from origin/main."
+            exit 1
+          fi
+
+          package_version="$(node -p "require('./package.json').version")"
+          lock_version="$(node -p "require('./package-lock.json').version")"
+
+          if [[ "$package_version" != "$version" ]]; then
+            echo "package.json version ($package_version) does not match $TAG."
+            exit 1
+          fi
+
+          if [[ "$lock_version" != "$version" ]]; then
+            echo "package-lock.json version ($lock_version) does not match $TAG."
+            exit 1
+          fi
+
+          if ! grep -Fq "## [$version] - " CHANGELOG.md; then
+            echo "CHANGELOG.md does not contain a release section for $version."
+            exit 1
+          fi
+
+          is_draft="$(gh release view "$TAG" --json isDraft --jq '.isDraft')"
+          if [[ "$is_draft" != "true" ]]; then
+            echo "Expected a draft release for $TAG before verification."
+            exit 1
+          fi
+
+      - name: Dispatch publish workflow
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PREP_PAT != '' && secrets.RELEASE_PREP_PAT || github.token }}
+          TAG: ${{ inputs.tag }}
+          VERIFIED_REF: ${{ github.ref }}
+          VERIFIED_RUN_ID: ${{ github.run_id }}
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${GITHUB_REPOSITORY}/dispatches" \
+            --field event_type=publish_verified_release \
+            --field "client_payload[tag]=$TAG" \
+            --field "client_payload[verified_ref]=$VERIFIED_REF" \
+            --field "client_payload[verified_run_id]=$VERIFIED_RUN_ID"
