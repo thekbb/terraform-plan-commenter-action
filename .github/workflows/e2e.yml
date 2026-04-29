@@ -1,0 +1,144 @@
+name: End-to-End Test
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  smoke-test:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Prepare unique fixture directory
+        id: fixture
+        shell: bash
+        run: |
+          fixture_dir="fixtures/e2e/runtime-smoke"
+          rm -rf "$fixture_dir"
+          cp -R fixtures/e2e/basic-plan "$fixture_dir"
+          echo "fixture_dir=$fixture_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Run action once
+        id: first
+        uses: ./
+        with:
+          working-directory: ${{ steps.fixture.outputs.fixture_dir }}
+          terraform-version: '1.14.3'
+          github-token: ${{ github.token }}
+
+      - name: Assert first action outputs
+        shell: bash
+        env:
+          PLAN_EXIT_CODE: ${{ steps.first.outputs.plan-exit-code }}
+          HAS_CHANGES: ${{ steps.first.outputs.has-changes }}
+        run: |
+          test "$PLAN_EXIT_CODE" = "2"
+          test "$HAS_CHANGES" = "true"
+
+      - name: Run action twice to exercise comment update
+        if: github.event_name == 'pull_request'
+        id: second
+        uses: ./
+        with:
+          working-directory: ${{ steps.fixture.outputs.fixture_dir }}
+          terraform-version: '1.14.3'
+          github-token: ${{ github.token }}
+
+      - name: Assert second action outputs
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          PLAN_EXIT_CODE: ${{ steps.second.outputs.plan-exit-code }}
+          HAS_CHANGES: ${{ steps.second.outputs.has-changes }}
+        run: |
+          test "$PLAN_EXIT_CODE" = "2"
+          test "$HAS_CHANGES" = "true"
+
+      - name: Assert exactly one PR comment exists for this fixture
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          FIXTURE_DIR: ${{ steps.fixture.outputs.fixture_dir }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const markerDir = process.env.FIXTURE_DIR === '.'
+              ? 'root'
+              : process.env.FIXTURE_DIR.replaceAll('/', '-');
+            const marker = `<!-- terraform-plan-comment:${markerDir}:default -->`;
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              }
+            );
+
+            const matches = comments.filter((comment) =>
+              comment.user.type === 'Bot' && comment.body.includes(marker)
+            );
+
+            if (matches.length !== 1) {
+              throw new Error(`expected exactly one bot comment with marker ${marker}, found ${matches.length}`);
+            }
+
+            const body = matches[0].body;
+            if (!body.includes('### Terraform Plan')) {
+              throw new Error('expected the smoke-test comment to include the Terraform Plan heading');
+            }
+
+            if (!body.includes('Plan: 1 to add, 0 to change, 0 to destroy.')) {
+              throw new Error('expected the smoke-test comment to include the planned resource addition');
+            }
+
+      - name: Clean up smoke-test PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          FIXTURE_DIR: ${{ steps.fixture.outputs.fixture_dir }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const markerDir = process.env.FIXTURE_DIR === '.'
+              ? 'root'
+              : process.env.FIXTURE_DIR.replaceAll('/', '-');
+            const marker = `<!-- terraform-plan-comment:${markerDir}:default -->`;
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              }
+            );
+
+            for (const comment of comments) {
+              if (comment.user.type === 'Bot' && comment.body.includes(marker)) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+            }
