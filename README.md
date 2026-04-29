@@ -289,7 +289,7 @@ release tags with movable major tags, see
 If you prefer a release-specific tag in `uses:`, pin to the current release instead:
 
 ```yaml
-- uses: thekbb/terraform-plan-commenter-action@v1.2.2
+- uses: thekbb/terraform-plan-commenter-action@v2.0.0
   with:
     init-args: '-lockfile=readonly'
 ```
