@@ -110,3 +110,102 @@ jobs:
             if (!body.includes('Plan: 1 to add, 0 to change, 0 to destroy.')) {
               throw new Error('expected the smoke-test comment to include the planned resource addition');
             }
+
+  large-plan-truncation:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Generate a large Terraform fixture
+        id: fixture
+        shell: bash
+        run: |
+          fixture_dir="fixtures/e2e/runtime-large-plan"
+          rm -rf "$fixture_dir"
+          mkdir -p "$fixture_dir"
+
+          cat > "$fixture_dir/main.tf" <<'EOF'
+          terraform {
+            required_version = ">= 1.4.0"
+          }
+          EOF
+
+          for i in $(seq 1 1500); do
+            cat >> "$fixture_dir/main.tf" <<EOF
+
+          resource "terraform_data" "example_${i}" {
+            input = "terraform-plan-commenter-action-${i}"
+          }
+          EOF
+          done
+
+          echo "fixture_dir=$fixture_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Run action against the large fixture
+        id: plan
+        uses: ./
+        with:
+          working-directory: ${{ steps.fixture.outputs.fixture_dir }}
+          terraform-version: '1.14.3'
+          github-token: ${{ github.token }}
+
+      - name: Assert action outputs
+        shell: bash
+        env:
+          PLAN_EXIT_CODE: ${{ steps.plan.outputs.plan-exit-code }}
+          HAS_CHANGES: ${{ steps.plan.outputs.has-changes }}
+        run: |
+          test "$PLAN_EXIT_CODE" = "2"
+          test "$HAS_CHANGES" = "true"
+
+      - name: Assert the PR comment took the truncation path
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          FIXTURE_DIR: ${{ steps.fixture.outputs.fixture_dir }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const markerDir = process.env.FIXTURE_DIR === '.'
+              ? 'root'
+              : process.env.FIXTURE_DIR.replaceAll('/', '-');
+            const marker = `<!-- terraform-plan-comment:${markerDir}:default -->`;
+            const expectedRunUrl =
+              `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              }
+            );
+
+            const matches = comments.filter((comment) =>
+              comment.user.type === 'Bot' && comment.body.includes(marker)
+            );
+
+            if (matches.length !== 1) {
+              throw new Error(`expected exactly one bot comment with marker ${marker}, found ${matches.length}`);
+            }
+
+            const body = matches[0].body;
+            if (!body.includes('Plan output is too large for GitHub comment')) {
+              throw new Error('expected the large-plan comment to include the truncation warning');
+            }
+
+            if (!body.includes(expectedRunUrl)) {
+              throw new Error(`expected the large-plan comment to link to ${expectedRunUrl}`);
+            }
+
+            if (!body.includes('🟢 <strong>create</strong> <code>1500</code>')) {
+              throw new Error('expected the large-plan comment to keep the summary counts');
+            }
