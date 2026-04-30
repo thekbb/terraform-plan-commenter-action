@@ -110,35 +110,3 @@ jobs:
             if (!body.includes('Plan: 1 to add, 0 to change, 0 to destroy.')) {
               throw new Error('expected the smoke-test comment to include the planned resource addition');
             }
-
-      - name: Clean up smoke-test PR comment
-        if: always() && github.event_name == 'pull_request'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          FIXTURE_DIR: ${{ steps.fixture.outputs.fixture_dir }}
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const markerDir = process.env.FIXTURE_DIR === '.'
-              ? 'root'
-              : process.env.FIXTURE_DIR.replaceAll('/', '-');
-            const marker = `<!-- terraform-plan-comment:${markerDir}:default -->`;
-
-            const comments = await github.paginate(
-              github.rest.issues.listComments,
-              {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-              }
-            );
-
-            for (const comment of comments) {
-              if (comment.user.type === 'Bot' && comment.body.includes(marker)) {
-                await github.rest.issues.deleteComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: comment.id,
-                });
-              }
-            }
