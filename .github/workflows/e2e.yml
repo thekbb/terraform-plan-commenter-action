@@ -209,3 +209,74 @@ jobs:
             if (!body.includes('🟢 <strong>create</strong> <code>1500</code>')) {
               throw new Error('expected the large-plan comment to keep the summary counts');
             }
+
+  plan-failure:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Run action against a failing fixture
+        id: failure
+        continue-on-error: true
+        uses: ./
+        with:
+          working-directory: fixtures/e2e/plan-failure
+          terraform-version: '1.14.3'
+          github-token: ${{ github.token }}
+
+      - name: Assert failure outputs and action result
+        shell: bash
+        env:
+          STEP_OUTCOME: ${{ steps.failure.outcome }}
+          PLAN_EXIT_CODE: ${{ steps.failure.outputs.plan-exit-code }}
+          HAS_CHANGES: ${{ steps.failure.outputs.has-changes }}
+        run: |
+          test "$STEP_OUTCOME" = "failure"
+          test "$PLAN_EXIT_CODE" = "1"
+          test "$HAS_CHANGES" = "false"
+
+      - name: Assert the PR comment reflects a failed plan
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const marker = '<!-- terraform-plan-comment:fixtures-e2e-plan-failure:default -->';
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              }
+            );
+
+            const matches = comments.filter((comment) =>
+              comment.user.type === 'Bot' && comment.body.includes(marker)
+            );
+
+            if (matches.length !== 1) {
+              throw new Error(`expected exactly one bot comment with marker ${marker}, found ${matches.length}`);
+            }
+
+            const body = matches[0].body;
+            if (!body.includes('### Terraform Plan')) {
+              throw new Error('expected the failure comment to include the Terraform Plan heading');
+            }
+
+            if (!body.includes('❌ Plan failed')) {
+              throw new Error('expected the failure comment to include the failed-plan summary');
+            }
+
+            if (body.includes('✅ No changes')) {
+              throw new Error('did not expect the failure comment to look like a no-changes success');
+            }
