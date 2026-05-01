@@ -9,12 +9,18 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      verified_ref: ${{ steps.meta.outputs.verified_ref }}
+      verified_run_id: ${{ steps.meta.outputs.verified_run_id }}
 
     steps:
       - name: Validate workflow context
@@ -32,6 +38,19 @@ jobs:
             echo "In the GitHub UI, choose $TAG in the Run workflow branch/tag dropdown."
             exit 1
           fi
+
+      - name: Record verified release metadata
+        id: meta
+        env:
+          TAG: ${{ inputs.tag }}
+          VERIFIED_REF: ${{ github.ref }}
+          VERIFIED_RUN_ID: ${{ github.run_id }}
+        run: |
+          {
+            echo "tag=$TAG"
+            echo "verified_ref=$VERIFIED_REF"
+            echo "verified_run_id=$VERIFIED_RUN_ID"
+          } >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -118,12 +137,19 @@ jobs:
             exit 1
           fi
 
+  dispatch-publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
       - name: Dispatch publish workflow
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PREP_PAT != '' && secrets.RELEASE_PREP_PAT || github.token }}
-          TAG: ${{ inputs.tag }}
-          VERIFIED_REF: ${{ github.ref }}
-          VERIFIED_RUN_ID: ${{ github.run_id }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          VERIFIED_REF: ${{ needs.verify.outputs.verified_ref }}
+          VERIFIED_RUN_ID: ${{ needs.verify.outputs.verified_run_id }}
         run: |
           gh api \
             --method POST \
