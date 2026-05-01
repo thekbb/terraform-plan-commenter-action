@@ -93,6 +93,7 @@ runs:
         WORKING_DIR: ${{ inputs.working-directory }}
         TF_WORKSPACE: ${{ steps.plan.outputs.workspace }}
         SUMMARY_THEME: ${{ inputs.summary-theme }}
+        COMMENT_NOTE: ${{ env.COMMENT_NOTE }}
       with:
         github-token: ${{ inputs.github-token }}
         script: |
