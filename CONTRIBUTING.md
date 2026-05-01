@@ -38,6 +38,20 @@ npm test                    # Run once
 npm run test:watch          # Watch mode
 ```
 
+The repository also has GitHub-side end-to-end workflow tests in
+`.github/workflows/e2e.yml`. Those jobs exercise the checked-in composite
+action against real Terraform fixtures and verify the resulting PR-comment
+behavior in GitHub Actions itself.
+
+On same-repo pull requests, these tests leave one stable comment per scenario:
+
+- smoke test
+- large-plan truncation
+- plan-failure
+
+Each comment identifies itself as an automated end-to-end test artifact and is
+expected to be updated by later runs of the same scenario.
+
 ## Making Changes
 
 1. Fork the repository

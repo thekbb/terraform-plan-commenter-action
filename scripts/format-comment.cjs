@@ -43,6 +43,7 @@ module.exports = async ({ github, context, core }) => {
   const workingDir = process.env.WORKING_DIR || '.';
   const workspace = process.env.TF_WORKSPACE || 'default';
   const theme = process.env.SUMMARY_THEME || 'default';
+  const commentNote = process.env.COMMENT_NOTE || '';
 
   try {
     const plan = process.env.PLAN_FILE
@@ -57,11 +58,13 @@ module.exports = async ({ github, context, core }) => {
 
     const marker = makeMarker(workingDir, workspace);
     const dirNote = workingDir !== '.' ? `\n📁 \`${workingDir}\`\n` : '';
+    const noteBlock = commentNote ? `\n${commentNote.trim()}\n` : '';
 
     const output = [
       marker,
       '### Terraform Plan',
       dirNote,
+      noteBlock,
       `<details><summary>${summary || 'Show Plan'}</summary>`,
       '',
       '```terraform',
@@ -118,6 +121,7 @@ module.exports = async ({ github, context, core }) => {
         marker,
         '### Terraform Plan',
         dirNote,
+        noteBlock,
         `⚠️ Plan output is too large for GitHub comment (${output.length.toLocaleString()} chars).`,
         '',
         runUrl ? `View the full plan in the [workflow run](${runUrl}).` : '',

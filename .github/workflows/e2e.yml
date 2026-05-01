@@ -39,6 +39,10 @@ jobs:
       - name: Run action once
         id: first
         uses: ./
+        env:
+          COMMENT_NOTE: |
+            Automated end-to-end smoke test. This verifies the normal successful plan path and comment update behavior.
+            Expected to persist on the pull request and be updated by later runs of this same test.
         with:
           working-directory: ${{ steps.fixture.outputs.fixture_dir }}
           terraform-version: '1.14.3'
@@ -57,6 +61,10 @@ jobs:
         if: github.event_name == 'pull_request'
         id: second
         uses: ./
+        env:
+          COMMENT_NOTE: |
+            Automated end-to-end smoke test. This verifies the normal successful plan path and comment update behavior.
+            Expected to persist on the pull request and be updated by later runs of this same test.
         with:
           working-directory: ${{ steps.fixture.outputs.fixture_dir }}
           terraform-version: '1.14.3'
@@ -107,6 +115,10 @@ jobs:
               throw new Error('expected the smoke-test comment to include the Terraform Plan heading');
             }
 
+            if (!body.includes('Automated end-to-end smoke test. This verifies the normal successful plan path and comment update behavior.')) {
+              throw new Error('expected the smoke-test comment to identify itself as an automated test artifact');
+            }
+
             if (!body.includes('Plan: 1 to add, 0 to change, 0 to destroy.')) {
               throw new Error('expected the smoke-test comment to include the planned resource addition');
             }
@@ -152,6 +164,10 @@ jobs:
       - name: Run action against the large fixture
         id: plan
         uses: ./
+        env:
+          COMMENT_NOTE: |
+            Automated end-to-end large-plan truncation test. This verifies the oversized comment fallback and workflow-run link.
+            Expected to persist on the pull request and be updated by later runs of this same test.
         with:
           working-directory: ${{ steps.fixture.outputs.fixture_dir }}
           terraform-version: '1.14.3'
@@ -202,6 +218,10 @@ jobs:
               throw new Error('expected the large-plan comment to include the truncation warning');
             }
 
+            if (!body.includes('Automated end-to-end large-plan truncation test. This verifies the oversized comment fallback and workflow-run link.')) {
+              throw new Error('expected the large-plan comment to identify itself as an automated test artifact');
+            }
+
             if (!body.includes(expectedRunUrl)) {
               throw new Error(`expected the large-plan comment to link to ${expectedRunUrl}`);
             }
@@ -227,6 +247,10 @@ jobs:
         id: failure
         continue-on-error: true
         uses: ./
+        env:
+          COMMENT_NOTE: |
+            Automated end-to-end plan-failure test. This verifies the failed-plan path and failure-style comment behavior.
+            Expected to persist on the pull request and be updated by later runs of this same test.
         with:
           working-directory: fixtures/e2e/plan-failure
           terraform-version: '1.14.3'
@@ -275,6 +299,10 @@ jobs:
 
             if (!body.includes('❌ Plan failed')) {
               throw new Error('expected the failure comment to include the failed-plan summary');
+            }
+
+            if (!body.includes('Automated end-to-end plan-failure test. This verifies the failed-plan path and failure-style comment behavior.')) {
+              throw new Error('expected the failure comment to identify itself as an automated test artifact');
             }
 
             if (body.includes('✅ No changes')) {

@@ -74,6 +74,23 @@ describe('format-comment action behavior', () => {
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
+  it('includes an optional comment note when provided', async () => {
+    process.env.COMMENT_NOTE = [
+      'Automated end-to-end test comment.',
+      'Expected to be updated by later runs for this same fixture.'
+    ].join('\n');
+    const github = makeGithub();
+    const core = makeCore();
+
+    await formatComment({ github, context: baseContext, core });
+
+    expect(github.rest.issues.createComment).toHaveBeenCalledTimes(1);
+    const [{ body }] = github.rest.issues.createComment.mock.calls[0];
+    expect(body).toContain('Automated end-to-end test comment.');
+    expect(body).toContain('Expected to be updated by later runs for this same fixture.');
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
   it('uses default env values when optional inputs are missing', async () => {
     delete process.env.PLAN;
     delete process.env.PLAN_FILE;
