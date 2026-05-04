@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   formatSummary,
   makeMarker,
+  normalizeWorkingDir,
   NO_CHANGES_SUMMARY,
   parsePlanSummary,
   PLAN_FAILED_SUMMARY,
@@ -323,8 +324,36 @@ describe('makeMarker', () => {
     expect(marker).toBe('<!-- terraform-plan-comment:infra-terraform-prod:default -->');
   });
 
+  it('uses normalized directory values for marker identity', () => {
+    const marker = '<!-- terraform-plan-comment:terraform-infra:default -->';
+
+    expect(makeMarker('terraform-infra', 'default')).toBe(marker);
+    expect(makeMarker('./terraform-infra', 'default')).toBe(marker);
+    expect(makeMarker('terraform-infra/', 'default')).toBe(marker);
+    expect(makeMarker('./terraform-infra/', 'default')).toBe(marker);
+    expect(makeMarker(' ./terraform-infra// ', 'default')).toBe(marker);
+  });
+
   it('returns valid HTML comment', () => {
     const marker = makeMarker('.', 'default');
     expect(marker).toMatch(/^<!--.*-->$/);
+  });
+});
+
+describe('normalizeWorkingDir', () => {
+  it('keeps repo root as dot', () => {
+    expect(normalizeWorkingDir('.')).toBe('.');
+    expect(normalizeWorkingDir(' . ')).toBe('.');
+    expect(normalizeWorkingDir('./')).toBe('.');
+  });
+
+  it('normalizes equivalent directory spellings', () => {
+    expect(normalizeWorkingDir('terraform-infra')).toBe('terraform-infra');
+    expect(normalizeWorkingDir('./terraform-infra')).toBe('terraform-infra');
+    expect(normalizeWorkingDir('terraform-infra/')).toBe('terraform-infra');
+    expect(normalizeWorkingDir('./terraform-infra/')).toBe('terraform-infra');
+    expect(normalizeWorkingDir(' ./terraform-infra//modules///app/ ')).toBe(
+      'terraform-infra/modules/app'
+    );
   });
 });
