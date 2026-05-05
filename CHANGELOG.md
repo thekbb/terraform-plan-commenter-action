@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Parse the actual Terraform `Plan:` summary line when building the PR comment
+  summary so unrelated resource content like `to add` does't prevent summary in comment
+
 ## [2.0.0] - 2026-04-29
 
 ### Removed
