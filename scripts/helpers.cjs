@@ -27,6 +27,29 @@ const UNSUMMARIZABLE_PLAN = 'Plan output could not be summarized';
 
 /**
  * @param {string} plan
+ * @returns {string}
+ */
+const extractPlanSummaryLine = (plan) => {
+  const lines = plan.split('\n');
+
+  for (const line of lines) {
+    if (line.startsWith('No changes.')) {
+      return line;
+    }
+  }
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index];
+    if (line?.startsWith('Plan: ')) {
+      return line;
+    }
+  }
+
+  return '';
+};
+
+/**
+ * @param {string} plan
  * @param {string} exitCode
  * @returns {ParsedSummary}
  */
@@ -35,18 +58,20 @@ const parsePlanSummary = (plan, exitCode) => {
     return { kind: 'failed' };
   }
 
-  if (exitCode === '0' || plan.includes('No changes.')) {
+  const summaryLine = extractPlanSummaryLine(plan);
+
+  if (exitCode === '0' || summaryLine.startsWith('No changes.')) {
     return { kind: 'no_changes' };
   }
 
-  const hasMalformedCount = COUNT_RULES.some(({ malformedPattern }) => malformedPattern.test(plan));
+  const hasMalformedCount = COUNT_RULES.some(({ malformedPattern }) => malformedPattern.test(summaryLine));
 
   if (hasMalformedCount) {
     return { kind: 'unparsable' };
   }
 
   const counts = COUNT_RULES.flatMap(({ key, label, pattern }) => {
-    const match = plan.match(pattern);
+    const match = summaryLine.match(pattern);
     return match ? [{ key, label, value: match[1] }] : [];
   });
 
@@ -135,6 +160,7 @@ const makeMarker = (workingDir = '.', workspace = 'default') => {
 };
 
 module.exports = {
+  extractPlanSummaryLine,
   formatSummary,
   makeMarker,
   NO_CHANGES_SUMMARY,
