@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  extractPlanSummaryLine,
   formatSummary,
   makeMarker,
   NO_CHANGES_SUMMARY,
@@ -248,6 +249,34 @@ Plan: 0 to add, 12 to change, 2 to destroy.`;
     });
   });
 
+});
+
+describe('extractPlanSummaryLine', () => {
+  it('returns the no-changes line when present', () => {
+    const plan = `Terraform used the selected providers to generate the following execution plan.
+
+No changes. Your infrastructure matches the configuration.`;
+
+    expect(extractPlanSummaryLine(plan)).toBe(
+      'No changes. Your infrastructure matches the configuration.',
+    );
+  });
+
+  it('returns the final Plan line when multiple lines contain summary-like words', () => {
+    const plan = `A rendered page says "Be the first to add one."
+Plan: 1 to add, 0 to change, 0 to destroy.
+
+Some trailing note.
+Plan: 0 to add, 12 to change, 2 to destroy.`;
+
+    expect(extractPlanSummaryLine(plan)).toBe(
+      'Plan: 0 to add, 12 to change, 2 to destroy.',
+    );
+  });
+
+  it('returns an empty string when no summary line exists', () => {
+    expect(extractPlanSummaryLine('Terraform planning output without summary counts')).toBe('');
+  });
 });
 
 describe('renderPlanSummary', () => {
