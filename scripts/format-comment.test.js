@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  extractPlanSummaryLine,
   formatSummary,
   makeMarker,
   NO_CHANGES_SUMMARY,
@@ -123,6 +124,26 @@ describe('formatSummary', () => {
     expect(result).toBe(UNSUMMARIZABLE_PLAN);
   });
 
+  it('parses the actual Plan line even when resource content includes "to add"', () => {
+    const plan = `Terraform will perform the following actions:
+
+  # aws_s3_object.index will be updated in-place
+  ~ resource "aws_s3_object" "index" {
+      ~ content = <<-EOT
+            <p>No quotes yet. Be the first to add one.</p>
+        EOT
+    }
+
+Plan: 0 to add, 12 to change, 2 to destroy.
+`;
+    const result = formatSummary(plan, '2');
+    expect(result).toBe(
+      '🟢 <strong>create</strong> <code>0</code> · ' +
+      '🟡 <strong>update</strong> <code>12</code> · ' +
+      '🔴 <strong>destroy</strong> <code>2</code>'
+    );
+  });
+
   it('handles large numbers', () => {
     const plan = 'Plan: 100 to add, 50 to change, 25 to destroy.';
     const result = formatSummary(plan, '2');
@@ -214,6 +235,48 @@ describe('parsePlanSummary', () => {
     });
   });
 
+  it('ignores unrelated "to add" text outside the actual summary line', () => {
+    const plan = `A rendered page says "Be the first to add one."
+Plan: 0 to add, 12 to change, 2 to destroy.`;
+
+    expect(parsePlanSummary(plan, '2')).toEqual({
+      kind: 'counts',
+      counts: [
+        { key: 'create', label: 'create', value: '0' },
+        { key: 'update', label: 'update', value: '12' },
+        { key: 'destroy', label: 'destroy', value: '2' },
+      ],
+    });
+  });
+
+});
+
+describe('extractPlanSummaryLine', () => {
+  it('returns the no-changes line when present', () => {
+    const plan = `Terraform used the selected providers to generate the following execution plan.
+
+No changes. Your infrastructure matches the configuration.`;
+
+    expect(extractPlanSummaryLine(plan)).toBe(
+      'No changes. Your infrastructure matches the configuration.',
+    );
+  });
+
+  it('returns the final Plan line when multiple lines contain summary-like words', () => {
+    const plan = `A rendered page says "Be the first to add one."
+Plan: 1 to add, 0 to change, 0 to destroy.
+
+Some trailing note.
+Plan: 0 to add, 12 to change, 2 to destroy.`;
+
+    expect(extractPlanSummaryLine(plan)).toBe(
+      'Plan: 0 to add, 12 to change, 2 to destroy.',
+    );
+  });
+
+  it('returns an empty string when no summary line exists', () => {
+    expect(extractPlanSummaryLine('Terraform planning output without summary counts')).toBe('');
+  });
 });
 
 describe('renderPlanSummary', () => {
