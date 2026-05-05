@@ -123,6 +123,26 @@ describe('formatSummary', () => {
     expect(result).toBe(UNSUMMARIZABLE_PLAN);
   });
 
+  it('parses the actual Plan line even when resource content includes "to add"', () => {
+    const plan = `Terraform will perform the following actions:
+
+  # aws_s3_object.index will be updated in-place
+  ~ resource "aws_s3_object" "index" {
+      ~ content = <<-EOT
+            <p>No quotes yet. Be the first to add one.</p>
+        EOT
+    }
+
+Plan: 0 to add, 12 to change, 2 to destroy.
+`;
+    const result = formatSummary(plan, '2');
+    expect(result).toBe(
+      '🟢 <strong>create</strong> <code>0</code> · ' +
+      '🟡 <strong>update</strong> <code>12</code> · ' +
+      '🔴 <strong>destroy</strong> <code>2</code>'
+    );
+  });
+
   it('handles large numbers', () => {
     const plan = 'Plan: 100 to add, 50 to change, 25 to destroy.';
     const result = formatSummary(plan, '2');
@@ -210,6 +230,20 @@ describe('parsePlanSummary', () => {
         { key: 'create', label: 'create', value: '1' },
         { key: 'update', label: 'update', value: '3' },
         { key: 'destroy', label: 'destroy', value: '4' },
+      ],
+    });
+  });
+
+  it('ignores unrelated "to add" text outside the actual summary line', () => {
+    const plan = `A rendered page says "Be the first to add one."
+Plan: 0 to add, 12 to change, 2 to destroy.`;
+
+    expect(parsePlanSummary(plan, '2')).toEqual({
+      kind: 'counts',
+      counts: [
+        { key: 'create', label: 'create', value: '0' },
+        { key: 'update', label: 'update', value: '12' },
+        { key: 'destroy', label: 'destroy', value: '2' },
       ],
     });
   });
