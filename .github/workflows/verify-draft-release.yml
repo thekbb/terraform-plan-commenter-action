@@ -21,6 +21,7 @@ jobs:
       tag: ${{ steps.meta.outputs.tag }}
       verified_ref: ${{ steps.meta.outputs.verified_ref }}
       verified_run_id: ${{ steps.meta.outputs.verified_run_id }}
+      verified_sha: ${{ steps.meta.outputs.verified_sha }}
 
     steps:
       - name: Validate workflow context
@@ -45,11 +46,13 @@ jobs:
           TAG: ${{ inputs.tag }}
           VERIFIED_REF: ${{ github.ref }}
           VERIFIED_RUN_ID: ${{ github.run_id }}
+          VERIFIED_SHA: ${{ github.sha }}
         run: |
           {
             echo "tag=$TAG"
             echo "verified_ref=$VERIFIED_REF"
             echo "verified_run_id=$VERIFIED_RUN_ID"
+            echo "verified_sha=$VERIFIED_SHA"
           } >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -150,6 +153,7 @@ jobs:
           TAG: ${{ needs.verify.outputs.tag }}
           VERIFIED_REF: ${{ needs.verify.outputs.verified_ref }}
           VERIFIED_RUN_ID: ${{ needs.verify.outputs.verified_run_id }}
+          VERIFIED_SHA: ${{ needs.verify.outputs.verified_sha }}
         run: |
           gh api \
             --method POST \
@@ -158,4 +162,5 @@ jobs:
             --field event_type=publish_verified_release \
             --field "client_payload[tag]=$TAG" \
             --field "client_payload[verified_ref]=$VERIFIED_REF" \
-            --field "client_payload[verified_run_id]=$VERIFIED_RUN_ID"
+            --field "client_payload[verified_run_id]=$VERIFIED_RUN_ID" \
+            --field "client_payload[verified_sha]=$VERIFIED_SHA"
