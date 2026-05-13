@@ -119,7 +119,9 @@ jobs:
         run: terraform init -input=false
 
       - name: Select dev workspace
-        run: bash scripts/e2e/select-workspace.sh "${{ steps.fixture.outputs.fixture_dir }}" dev
+        env:
+          FIXTURE_DIR: ${{ steps.fixture.outputs.fixture_dir }}
+        run: bash scripts/e2e/select-workspace.sh "$FIXTURE_DIR" dev
 
       - name: Run action in dev workspace
         id: dev
@@ -141,7 +143,9 @@ jobs:
         run: bash scripts/e2e/assert-action-result.sh 2 true
 
       - name: Select staging workspace
-        run: bash scripts/e2e/select-workspace.sh "${{ steps.fixture.outputs.fixture_dir }}" staging
+        env:
+          FIXTURE_DIR: ${{ steps.fixture.outputs.fixture_dir }}
+        run: bash scripts/e2e/select-workspace.sh "$FIXTURE_DIR" staging
 
       - name: Run action in staging workspace
         id: staging
