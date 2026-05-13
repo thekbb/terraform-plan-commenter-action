@@ -4,7 +4,8 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.x     | :white_check_mark: |
+| 2.x     | :white_check_mark: |
+| 1.x     | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -19,13 +20,15 @@ We'll respond within 48 hours and work with you to understand and address the is
 This action:
 
 - Requires `pull-requests: write` to post PR comments
-- Uses `github.token` no additional secrets needed
-- Posts plan output to a PR comment be aware that plan output may contain sensitive information.
+- Works with `${{ github.token }}` by default, so consumer workflows do not
+  need an extra GitHub token just to post comments
+- Posts plan output to a PR comment, so treat that output as potentially
+  visible to anyone who can read the pull request
 - Treats `init-args` and `plan-args` as trusted configuration only.
   Do not populate them from untrusted input such as PR content, comments,
   or manually entered dispatch fields without validation.
 
-For strict environments, pin to a full SHA:
+For stricter environments, pin to a full SHA:
 
 ```yaml
 uses: thekbb/terraform-plan-commenter-action@<full-commit-sha>
@@ -55,6 +58,3 @@ the expected commit on `main`, and that the published GitHub release is
 immutable. It does not prove anything about GitHub settings outside the repo,
 and it does not prove artifact provenance because this repository does not
 publish a built artifact.
-
-Or fork this repo into your org for complete control.
-I do this for all GitHub actions not owned by a vendor's GitHub org.
