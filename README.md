@@ -294,6 +294,47 @@ If you prefer a release-specific tag in `uses:`, pin to the current release inst
     init-args: '-lockfile=readonly'
 ```
 
+## Trust Model & Limits
+
+This repo ships a
+[composite action](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action),
+not a generated `dist` artifact. The main thing to verify is the signed release
+tag that points at the source you are using. From there, the user-visible trust
+story is:
+
+- pin to a full 40-character commit SHA if you want an immutable workflow
+  reference
+- verify the signed release tag if you want to confirm where that SHA came from
+- immutable GitHub releases make published release metadata harder to change
+  after the fact
+- major tags such as `@v1` are convenience refs, not immutable ones
+
+Use this action when you already trust the Terraform code in the repo and you
+want the plan posted back to the PR for review.
+
+Do not use this action if:
+
+- your Terraform plan output may expose operational detail you do not want in
+  PR comments
+- you need provenance for a generated build artifact rather than signed-source
+  release verification
+- you would need to rely on `pull_request_target` to handle untrusted fork PRs
+
+For fork PRs, stick with `pull_request`. Do not switch to `pull_request_target`
+just to get comment permissions for untrusted forks. Keep `init-args` and
+`plan-args` limited to trusted, repo-controlled values.
+
+Terraform can still include resource names, identifiers, diffs, counts, and
+other useful operational detail in plan output even when some values are marked
+sensitive. Review what your plans actually print before you turn PR commenting
+on in a stricter environment.
+
+`verify-release.sh` is meant to answer a narrow question: "does this release
+tag point at signed source on `main`, and is the published GitHub release
+immutable?" It does not prove anything about your repository settings outside
+git, and it does not prove build-artifact provenance because this repo does not
+publish a built artifact.
+
 ## Release Process
 
 This repository uses a workflow-driven release flow while keeping release tags

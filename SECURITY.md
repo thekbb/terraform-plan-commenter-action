@@ -31,5 +31,30 @@ For strict environments, pin to a full SHA:
 uses: thekbb/terraform-plan-commenter-action@<full-commit-sha>
 ```
 
+## Trust Model & Limits
+
+This repo ships a composite action, not a built `dist` artifact. The release
+story is based on signed release tags, immutable GitHub releases, and consumer
+pinning to a full commit SHA.
+
+Use this action only if you are comfortable posting Terraform plan output back
+to GitHub as a PR comment.
+
+Do not use this action if:
+
+- your plan output may reveal operational detail you do not want in PR comments
+- you need attestation for a generated release artifact
+- you would need to rely on `pull_request_target` for untrusted fork PRs
+
+For fork PRs, prefer `pull_request`, not `pull_request_target`. Do not switch
+to `pull_request_target` just to get comment permissions for untrusted forks.
+Keep `init-args` and `plan-args` limited to trusted, repo-controlled values.
+
+`verify-release.sh` checks that the release tag is signed, that it resolves to
+the expected commit on `main`, and that the published GitHub release is
+immutable. It does not prove anything about GitHub settings outside the repo,
+and it does not prove artifact provenance because this repository does not
+publish a built artifact.
+
 Or fork this repo into your org for complete control.
 I do this for all GitHub actions not owned by a vendor's GitHub org.
