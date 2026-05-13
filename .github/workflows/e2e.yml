@@ -29,12 +29,7 @@ jobs:
 
       - name: Prepare unique fixture directory
         id: fixture
-        shell: bash
-        run: |
-          fixture_dir="fixtures/e2e/runtime-smoke"
-          rm -rf "$fixture_dir"
-          cp -R fixtures/e2e/basic-plan "$fixture_dir"
-          echo "fixture_dir=$fixture_dir" >> "$GITHUB_OUTPUT"
+        run: bash scripts/e2e/prepare-runtime-fixture.sh fixtures/e2e/runtime-smoke
 
       - name: Run action once
         id: first
@@ -53,9 +48,7 @@ jobs:
         env:
           PLAN_EXIT_CODE: ${{ steps.first.outputs.plan-exit-code }}
           HAS_CHANGES: ${{ steps.first.outputs.has-changes }}
-        run: |
-          test "$PLAN_EXIT_CODE" = "2"
-          test "$HAS_CHANGES" = "true"
+        run: bash scripts/e2e/assert-action-result.sh 2 true
 
       - name: Run action twice to exercise comment update
         if: github.event_name == 'pull_request'
@@ -76,52 +69,26 @@ jobs:
         env:
           PLAN_EXIT_CODE: ${{ steps.second.outputs.plan-exit-code }}
           HAS_CHANGES: ${{ steps.second.outputs.has-changes }}
-        run: |
-          test "$PLAN_EXIT_CODE" = "2"
-          test "$HAS_CHANGES" = "true"
+        run: bash scripts/e2e/assert-action-result.sh 2 true
 
       - name: Assert exactly one PR comment exists for this fixture
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           FIXTURE_DIR: ${{ steps.fixture.outputs.fixture_dir }}
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const markerDir = process.env.FIXTURE_DIR === '.'
-              ? 'root'
-              : process.env.FIXTURE_DIR.replaceAll('/', '-');
-            const marker = `<!-- terraform-plan-comment:${markerDir}:default -->`;
-
-            const comments = await github.paginate(
-              github.rest.issues.listComments,
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EXPECTATIONS_JSON: >
+            [
               {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
+                "workspace": "default",
+                "includes": [
+                  "### Terraform Plan",
+                  "Automated end-to-end smoke test. This verifies the normal successful plan path and comment update behavior.",
+                  "Plan: 1 to add, 0 to change, 0 to destroy."
+                ]
               }
-            );
-
-            const matches = comments.filter((comment) =>
-              comment.user.type === 'Bot' && comment.body.includes(marker)
-            );
-
-            if (matches.length !== 1) {
-              throw new Error(`expected exactly one bot comment with marker ${marker}, found ${matches.length}`);
-            }
-
-            const body = matches[0].body;
-            if (!body.includes('### Terraform Plan')) {
-              throw new Error('expected the smoke-test comment to include the Terraform Plan heading');
-            }
-
-            if (!body.includes('Automated end-to-end smoke test. This verifies the normal successful plan path and comment update behavior.')) {
-              throw new Error('expected the smoke-test comment to identify itself as an automated test artifact');
-            }
-
-            if (!body.includes('Plan: 1 to add, 0 to change, 0 to destroy.')) {
-              throw new Error('expected the smoke-test comment to include the planned resource addition');
-            }
+            ]
+        run: node scripts/e2e/assert-pr-comments.mjs
 
   workspace-isolation:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
@@ -138,12 +105,7 @@ jobs:
 
       - name: Prepare unique fixture directory
         id: fixture
-        shell: bash
-        run: |
-          fixture_dir="fixtures/e2e/runtime-workspace"
-          rm -rf "$fixture_dir"
-          cp -R fixtures/e2e/basic-plan "$fixture_dir"
-          echo "fixture_dir=$fixture_dir" >> "$GITHUB_OUTPUT"
+        run: bash scripts/e2e/prepare-runtime-fixture.sh fixtures/e2e/runtime-workspace
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
@@ -157,9 +119,7 @@ jobs:
         run: terraform init -input=false
 
       - name: Select dev workspace
-        shell: bash
-        working-directory: ${{ steps.fixture.outputs.fixture_dir }}
-        run: terraform workspace select dev || terraform workspace new dev
+        run: bash scripts/e2e/select-workspace.sh "${{ steps.fixture.outputs.fixture_dir }}" dev
 
       - name: Run action in dev workspace
         id: dev
@@ -178,14 +138,10 @@ jobs:
         env:
           PLAN_EXIT_CODE: ${{ steps.dev.outputs.plan-exit-code }}
           HAS_CHANGES: ${{ steps.dev.outputs.has-changes }}
-        run: |
-          test "$PLAN_EXIT_CODE" = "2"
-          test "$HAS_CHANGES" = "true"
+        run: bash scripts/e2e/assert-action-result.sh 2 true
 
       - name: Select staging workspace
-        shell: bash
-        working-directory: ${{ steps.fixture.outputs.fixture_dir }}
-        run: terraform workspace select staging || terraform workspace new staging
+        run: bash scripts/e2e/select-workspace.sh "${{ steps.fixture.outputs.fixture_dir }}" staging
 
       - name: Run action in staging workspace
         id: staging
@@ -204,66 +160,36 @@ jobs:
         env:
           PLAN_EXIT_CODE: ${{ steps.staging.outputs.plan-exit-code }}
           HAS_CHANGES: ${{ steps.staging.outputs.has-changes }}
-        run: |
-          test "$PLAN_EXIT_CODE" = "2"
-          test "$HAS_CHANGES" = "true"
+        run: bash scripts/e2e/assert-action-result.sh 2 true
 
       - name: Assert distinct PR comments exist per workspace
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           FIXTURE_DIR: ${{ steps.fixture.outputs.fixture_dir }}
-        with:
-          github-token: ${{ github.token }}
-          # TODO: Move this inline jank into a checked-in helper script once
-          # the workspace-isolation behavior has been verified in GHA run.
-          script: |
-            const markerDir = process.env.FIXTURE_DIR === '.'
-              ? 'root'
-              : process.env.FIXTURE_DIR.replaceAll('/', '-');
-
-            const expectedComments = [
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EXPECTATIONS_JSON: >
+            [
               {
-                marker: `<!-- terraform-plan-comment:${markerDir}:dev -->`,
-                note: 'Automated end-to-end workspace isolation test for the `dev` workspace.',
+                "workspace": "dev",
+                "label": "dev workspace comment",
+                "includes": [
+                  "### Terraform Plan",
+                  "Automated end-to-end workspace isolation test for the `dev` workspace.",
+                  "Plan: 1 to add, 0 to change, 0 to destroy."
+                ]
               },
               {
-                marker: `<!-- terraform-plan-comment:${markerDir}:staging -->`,
-                note: 'Automated end-to-end workspace isolation test for the `staging` workspace.',
-              },
-            ];
-
-            const comments = await github.paginate(
-              github.rest.issues.listComments,
-              {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
+                "workspace": "staging",
+                "label": "staging workspace comment",
+                "includes": [
+                  "### Terraform Plan",
+                  "Automated end-to-end workspace isolation test for the `staging` workspace.",
+                  "Plan: 1 to add, 0 to change, 0 to destroy."
+                ]
               }
-            );
-
-            for (const expected of expectedComments) {
-              const matches = comments.filter((comment) =>
-                comment.user.type === 'Bot' && comment.body.includes(expected.marker)
-              );
-
-              if (matches.length !== 1) {
-                throw new Error(`expected exactly one bot comment with marker ${expected.marker}, found ${matches.length}`);
-              }
-
-              const body = matches[0].body;
-              if (!body.includes('### Terraform Plan')) {
-                throw new Error(`expected the workspace comment ${expected.marker} to include the Terraform Plan heading`);
-              }
-
-              if (!body.includes(expected.note)) {
-                throw new Error(`expected the workspace comment ${expected.marker} to include its identifying note`);
-              }
-
-              if (!body.includes('Plan: 1 to add, 0 to change, 0 to destroy.')) {
-                throw new Error(`expected the workspace comment ${expected.marker} to include the planned resource addition`);
-              }
-            }
+            ]
+        run: node scripts/e2e/assert-pr-comments.mjs
 
   large-plan-truncation:
     if: github.event.pull_request.head.repo.full_name == github.repository
@@ -280,28 +206,7 @@ jobs:
 
       - name: Generate a large Terraform fixture
         id: fixture
-        shell: bash
-        run: |
-          fixture_dir="fixtures/e2e/runtime-large-plan"
-          rm -rf "$fixture_dir"
-          mkdir -p "$fixture_dir"
-
-          cat > "$fixture_dir/main.tf" <<'EOF'
-          terraform {
-            required_version = ">= 1.4.0"
-          }
-          EOF
-
-          for i in $(seq 1 1500); do
-            cat >> "$fixture_dir/main.tf" <<EOF
-
-          resource "terraform_data" "example_${i}" {
-            input = "terraform-plan-commenter-action-${i}"
-          }
-          EOF
-          done
-
-          echo "fixture_dir=$fixture_dir" >> "$GITHUB_OUTPUT"
+        run: bash scripts/e2e/generate-large-plan-fixture.sh fixtures/e2e/runtime-large-plan 1500
 
       - name: Run action against the large fixture
         id: plan
@@ -320,57 +225,26 @@ jobs:
         env:
           PLAN_EXIT_CODE: ${{ steps.plan.outputs.plan-exit-code }}
           HAS_CHANGES: ${{ steps.plan.outputs.has-changes }}
-        run: |
-          test "$PLAN_EXIT_CODE" = "2"
-          test "$HAS_CHANGES" = "true"
+        run: bash scripts/e2e/assert-action-result.sh 2 true
 
       - name: Assert the PR comment took the truncation path
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           FIXTURE_DIR: ${{ steps.fixture.outputs.fixture_dir }}
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const markerDir = process.env.FIXTURE_DIR === '.'
-              ? 'root'
-              : process.env.FIXTURE_DIR.replaceAll('/', '-');
-            const marker = `<!-- terraform-plan-comment:${markerDir}:default -->`;
-            const expectedRunUrl =
-              `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-
-            const comments = await github.paginate(
-              github.rest.issues.listComments,
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EXPECTATIONS_JSON: >
+            [
               {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
+                "workspace": "default",
+                "includes": [
+                  "Plan output is too large for GitHub comment",
+                  "Automated end-to-end large-plan truncation test. This verifies the oversized comment fallback and workflow-run link.",
+                  "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                  "🟢 <strong>create</strong> <code>1500</code>"
+                ]
               }
-            );
-
-            const matches = comments.filter((comment) =>
-              comment.user.type === 'Bot' && comment.body.includes(marker)
-            );
-
-            if (matches.length !== 1) {
-              throw new Error(`expected exactly one bot comment with marker ${marker}, found ${matches.length}`);
-            }
-
-            const body = matches[0].body;
-            if (!body.includes('Plan output is too large for GitHub comment')) {
-              throw new Error('expected the large-plan comment to include the truncation warning');
-            }
-
-            if (!body.includes('Automated end-to-end large-plan truncation test. This verifies the oversized comment fallback and workflow-run link.')) {
-              throw new Error('expected the large-plan comment to identify itself as an automated test artifact');
-            }
-
-            if (!body.includes(expectedRunUrl)) {
-              throw new Error(`expected the large-plan comment to link to ${expectedRunUrl}`);
-            }
-
-            if (!body.includes('🟢 <strong>create</strong> <code>1500</code>')) {
-              throw new Error('expected the large-plan comment to keep the summary counts');
-            }
+            ]
+        run: node scripts/e2e/assert-pr-comments.mjs
 
   plan-failure:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
@@ -404,49 +278,26 @@ jobs:
           STEP_OUTCOME: ${{ steps.failure.outcome }}
           PLAN_EXIT_CODE: ${{ steps.failure.outputs.plan-exit-code }}
           HAS_CHANGES: ${{ steps.failure.outputs.has-changes }}
-        run: |
-          test "$STEP_OUTCOME" = "failure"
-          test "$PLAN_EXIT_CODE" = "1"
-          test "$HAS_CHANGES" = "false"
+        run: bash scripts/e2e/assert-action-result.sh 1 false failure
 
       - name: Assert the PR comment reflects a failed plan
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const marker = '<!-- terraform-plan-comment:fixtures-e2e-plan-failure:default -->';
-
-            const comments = await github.paginate(
-              github.rest.issues.listComments,
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FIXTURE_DIR: fixtures/e2e/plan-failure
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EXPECTATIONS_JSON: >
+            [
               {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
+                "workspace": "default",
+                "includes": [
+                  "### Terraform Plan",
+                  "❌ Plan failed",
+                  "Automated end-to-end plan-failure test. This verifies the failed-plan path and failure-style comment behavior."
+                ],
+                "excludes": [
+                  "✅ No changes"
+                ]
               }
-            );
-
-            const matches = comments.filter((comment) =>
-              comment.user.type === 'Bot' && comment.body.includes(marker)
-            );
-
-            if (matches.length !== 1) {
-              throw new Error(`expected exactly one bot comment with marker ${marker}, found ${matches.length}`);
-            }
-
-            const body = matches[0].body;
-            if (!body.includes('### Terraform Plan')) {
-              throw new Error('expected the failure comment to include the Terraform Plan heading');
-            }
-
-            if (!body.includes('❌ Plan failed')) {
-              throw new Error('expected the failure comment to include the failed-plan summary');
-            }
-
-            if (!body.includes('Automated end-to-end plan-failure test. This verifies the failed-plan path and failure-style comment behavior.')) {
-              throw new Error('expected the failure comment to identify itself as an automated test artifact');
-            }
-
-            if (body.includes('✅ No changes')) {
-              throw new Error('did not expect the failure comment to look like a no-changes success');
-            }
+            ]
+        run: node scripts/e2e/assert-pr-comments.mjs
