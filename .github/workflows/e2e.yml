@@ -123,6 +123,148 @@ jobs:
               throw new Error('expected the smoke-test comment to include the planned resource addition');
             }
 
+  workspace-isolation:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Prepare unique fixture directory
+        id: fixture
+        shell: bash
+        run: |
+          fixture_dir="fixtures/e2e/runtime-workspace"
+          rm -rf "$fixture_dir"
+          cp -R fixtures/e2e/basic-plan "$fixture_dir"
+          echo "fixture_dir=$fixture_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
+        with:
+          terraform_version: '1.14.3'
+          terraform_wrapper: false
+
+      - name: Initialize Terraform for workspace switching
+        shell: bash
+        working-directory: ${{ steps.fixture.outputs.fixture_dir }}
+        run: terraform init -input=false
+
+      - name: Select dev workspace
+        shell: bash
+        working-directory: ${{ steps.fixture.outputs.fixture_dir }}
+        run: terraform workspace select dev || terraform workspace new dev
+
+      - name: Run action in dev workspace
+        id: dev
+        uses: ./
+        env:
+          COMMENT_NOTE: |
+            Automated end-to-end workspace isolation test for the `dev` workspace.
+            Expected to persist on the pull request separately from the `staging` workspace comment.
+        with:
+          working-directory: ${{ steps.fixture.outputs.fixture_dir }}
+          setup-terraform: 'false'
+          github-token: ${{ github.token }}
+
+      - name: Assert dev workspace outputs
+        shell: bash
+        env:
+          PLAN_EXIT_CODE: ${{ steps.dev.outputs.plan-exit-code }}
+          HAS_CHANGES: ${{ steps.dev.outputs.has-changes }}
+        run: |
+          test "$PLAN_EXIT_CODE" = "2"
+          test "$HAS_CHANGES" = "true"
+
+      - name: Select staging workspace
+        shell: bash
+        working-directory: ${{ steps.fixture.outputs.fixture_dir }}
+        run: terraform workspace select staging || terraform workspace new staging
+
+      - name: Run action in staging workspace
+        id: staging
+        uses: ./
+        env:
+          COMMENT_NOTE: |
+            Automated end-to-end workspace isolation test for the `staging` workspace.
+            Expected to persist on the pull request separately from the `dev` workspace comment.
+        with:
+          working-directory: ${{ steps.fixture.outputs.fixture_dir }}
+          setup-terraform: 'false'
+          github-token: ${{ github.token }}
+
+      - name: Assert staging workspace outputs
+        shell: bash
+        env:
+          PLAN_EXIT_CODE: ${{ steps.staging.outputs.plan-exit-code }}
+          HAS_CHANGES: ${{ steps.staging.outputs.has-changes }}
+        run: |
+          test "$PLAN_EXIT_CODE" = "2"
+          test "$HAS_CHANGES" = "true"
+
+      - name: Assert distinct PR comments exist per workspace
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          FIXTURE_DIR: ${{ steps.fixture.outputs.fixture_dir }}
+        with:
+          github-token: ${{ github.token }}
+          # TODO: Move this inline jank into a checked-in helper script once
+          # the workspace-isolation behavior has been verified in GHA run.
+          script: |
+            const markerDir = process.env.FIXTURE_DIR === '.'
+              ? 'root'
+              : process.env.FIXTURE_DIR.replaceAll('/', '-');
+
+            const expectedComments = [
+              {
+                marker: `<!-- terraform-plan-comment:${markerDir}:dev -->`,
+                note: 'Automated end-to-end workspace isolation test for the `dev` workspace.',
+              },
+              {
+                marker: `<!-- terraform-plan-comment:${markerDir}:staging -->`,
+                note: 'Automated end-to-end workspace isolation test for the `staging` workspace.',
+              },
+            ];
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              }
+            );
+
+            for (const expected of expectedComments) {
+              const matches = comments.filter((comment) =>
+                comment.user.type === 'Bot' && comment.body.includes(expected.marker)
+              );
+
+              if (matches.length !== 1) {
+                throw new Error(`expected exactly one bot comment with marker ${expected.marker}, found ${matches.length}`);
+              }
+
+              const body = matches[0].body;
+              if (!body.includes('### Terraform Plan')) {
+                throw new Error(`expected the workspace comment ${expected.marker} to include the Terraform Plan heading`);
+              }
+
+              if (!body.includes(expected.note)) {
+                throw new Error(`expected the workspace comment ${expected.marker} to include its identifying note`);
+              }
+
+              if (!body.includes('Plan: 1 to add, 0 to change, 0 to destroy.')) {
+                throw new Error(`expected the workspace comment ${expected.marker} to include the planned resource addition`);
+              }
+            }
+
   large-plan-truncation:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
