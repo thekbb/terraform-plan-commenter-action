@@ -56,7 +56,7 @@ jobs:
       # Run the plan
       # Prefer a full 40-character commit SHA in production. Keep the release tag
       # in a trailing comment for human review.
-      - uses: thekbb/terraform-plan-commenter-action@<full-commit-sha> # v1.2.1
+      - uses: thekbb/terraform-plan-commenter-action@<full-commit-sha> # v2.0.0
         with:
           init-args: '-lockfile=readonly'
 ```
@@ -108,7 +108,7 @@ concurrency:
 ### Specific Terraform Version
 
 ```yaml
-- uses: thekbb/terraform-plan-commenter-action@v1
+- uses: thekbb/terraform-plan-commenter-action@v2.0.0
   with:
     init-args: '-lockfile=readonly'
     terraform-version: '1.14.3'
@@ -117,7 +117,7 @@ concurrency:
 ### Subdirectory / Monorepo
 
 ```yaml
-- uses: thekbb/terraform-plan-commenter-action@v1
+- uses: thekbb/terraform-plan-commenter-action@v2.0.0
   with:
     init-args: '-lockfile=readonly'
     working-directory: 'infrastructure/'
@@ -126,7 +126,7 @@ concurrency:
 ### Var Files
 
 ```yaml
-- uses: thekbb/terraform-plan-commenter-action@v1
+- uses: thekbb/terraform-plan-commenter-action@v2.0.0
   with:
     init-args: '-lockfile=readonly'
     plan-args: '-var-file=prod.tfvars'
@@ -142,7 +142,7 @@ If you're using a matrix or already have Terraform configured:
     terraform_version: '1.14.3'
     terraform_wrapper: false  # Important if capturing output
 
-- uses: thekbb/terraform-plan-commenter-action@v1
+- uses: thekbb/terraform-plan-commenter-action@v2.0.0
   with:
     init-args: '-lockfile=readonly'
     setup-terraform: 'false'
@@ -151,7 +151,7 @@ If you're using a matrix or already have Terraform configured:
 ### Colorblind-Friendly Theme
 
 ```yaml
-- uses: thekbb/terraform-plan-commenter-action@v1
+- uses: thekbb/terraform-plan-commenter-action@v2.0.0
   with:
     init-args: '-lockfile=readonly'
     summary-theme: 'colorblind'
@@ -184,7 +184,7 @@ Select the workspace before running the action:
   run: terraform workspace select staging || terraform workspace new staging
   working-directory: ./infrastructure
 
-- uses: thekbb/terraform-plan-commenter-action@v1
+- uses: thekbb/terraform-plan-commenter-action@v2.0.0
   with:
     init-args: '-lockfile=readonly'
     working-directory: ./infrastructure
@@ -215,7 +215,7 @@ steps:
   - name: Select workspace
     run: terraform workspace select ${{ matrix.workspace }} || terraform workspace new ${{ matrix.workspace }}
 
-  - uses: thekbb/terraform-plan-commenter-action@v1
+  - uses: thekbb/terraform-plan-commenter-action@v2.0.0
     with:
       init-args: '-lockfile=readonly'
 ```
@@ -257,10 +257,10 @@ updates:
 ```
 
 Dependabot updates workflow `uses:` references in `.github/workflows`, including commit SHAs for GitHub Actions. The
-trailing `# v1.2.1` comment is mainly for human review so maintainers can see which release a referenced SHA
+trailing `# v2.0.0` comment is mainly for human review so maintainers can see which release a referenced SHA
 corresponds to.
 
-Use a release-specific tag such as `@v1.2.1` if you want a human-readable reference to a single published release. Use
+Use a release-specific tag such as `@v2.0.0` if you want a human-readable reference to a single published release. Use
 `@v1` only if you deliberately want the convenience of a moving major tag. For GitHub's model for combining fixed
 release tags with movable major tags, see
 [Using immutable releases and tags to manage your action's releases](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/using-immutable-releases-and-tags-to-manage-your-actions-releases).
