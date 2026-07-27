@@ -2,6 +2,9 @@
 
 /* global fetch */
 
+import helpers from '../helpers.cjs';
+
+const { makeMarker } = helpers;
 const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
 const repository = process.env.GITHUB_REPOSITORY || '';
 const pullRequestNumber = Number.parseInt(process.env.PR_NUMBER || '', 10);
@@ -31,15 +34,6 @@ if (!Array.isArray(expectations) || expectations.length === 0) {
 }
 
 const [owner, repo] = repository.split('/');
-const markerDir = fixtureDir === '.' ? 'root' : fixtureDir.replaceAll('/', '-');
-
-/**
- * @param {string} [workspace]
- * @returns {string}
- */
-function makeMarker(workspace = 'default') {
-  return `<!-- terraform-plan-comment:${markerDir}:${workspace} -->`;
-}
 
 /**
  * @param {Headers} headers
@@ -113,7 +107,7 @@ for (const expectation of expectations) {
   }
 
   const workspace = typeof expectation.workspace === 'string' ? expectation.workspace : 'default';
-  const marker = typeof expectation.marker === 'string' ? expectation.marker : makeMarker(workspace);
+  const marker = typeof expectation.marker === 'string' ? expectation.marker : makeMarker(fixtureDir, workspace);
   const label = typeof expectation.label === 'string' ? expectation.label : marker;
   const expectedCount = Number.isInteger(expectation.count) ? expectation.count : 1;
   const includes = normalizeStringArray(expectation.includes, 'includes');

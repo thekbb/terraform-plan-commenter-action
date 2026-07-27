@@ -151,12 +151,26 @@ const stripRefreshNoise = (plan = '') => {
 
 /**
  * @param {string} [workingDir]
+ * @returns {string}
+ */
+const normalizeWorkingDirForMarker = (workingDir = '.') => {
+  const normalizedDir = workingDir
+    .trim()
+    .replace(/^\.\/+/, '')
+    .replace(/\/+/g, '/')
+    .replace(/\/+$/g, '');
+
+  return normalizedDir === '' || normalizedDir === '.' ? 'root' : normalizedDir;
+};
+
+/**
+ * @param {string} [workingDir]
  * @param {string} [workspace]
  * @returns {string}
  */
 const makeMarker = (workingDir = '.', workspace = 'default') => {
-  const normalizedDir = workingDir === '.' ? 'root' : workingDir.replace(/\//g, '-');
-  return `<!-- terraform-plan-comment:${normalizedDir}:${workspace} -->`;
+  const markerDir = normalizeWorkingDirForMarker(workingDir).replace(/\//g, '-');
+  return `<!-- terraform-plan-comment:${markerDir}:${workspace} -->`;
 };
 
 module.exports = {
