@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Parse the actual Terraform `Plan:` summary line when building the PR comment
   summary so unrelated resource content like `to add` does't prevent summary in comment
+- Normalize `working-directory` before building the PR comment identity marker so
+  equivalent values such as `terraform-infra`, `./terraform-infra`,
+  `terraform-infra/`, and `./terraform-infra/` update the same comment
+
+### Notes
+
+- Existing open PR comments created with non-normalized `working-directory`
+  markers may not be updated after upgrading. The next run will create one new
+  normalized comment for that directory/workspace, and subsequent runs will
+  update it.
 
 ## [2.0.0] - 2026-04-29
 

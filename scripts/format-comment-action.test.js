@@ -181,6 +181,34 @@ describe('format-comment action behavior', () => {
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
+  it('updates an existing bot comment when working directory spelling changes', async () => {
+    process.env.WORKING_DIR = './terraform-infra/';
+    const github = makeGithub();
+    github.rest.issues.listComments.mockResolvedValue({
+      data: [
+        {
+          id: 8,
+          user: { type: 'Bot' },
+          body: '<!-- terraform-plan-comment:terraform-infra:default -->\nold body',
+        },
+      ],
+    });
+    const core = makeCore();
+
+    await formatComment({ github, context: baseContext, core });
+
+    expect(github.rest.issues.updateComment).toHaveBeenCalledWith({
+      owner: 'thekbb',
+      repo: 'terraform-plan-commenter-action',
+      comment_id: 8,
+      body: expect.stringContaining(
+        '<!-- terraform-plan-comment:terraform-infra:default -->'
+      ),
+    });
+    expect(github.rest.issues.createComment).not.toHaveBeenCalled();
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
   it('does not update a matching human comment', async () => {
     const github = makeGithub();
     github.rest.issues.listComments.mockResolvedValue({

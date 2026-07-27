@@ -386,6 +386,43 @@ describe('makeMarker', () => {
     expect(marker).toBe('<!-- terraform-plan-comment:infra-terraform-prod:default -->');
   });
 
+  it('normalizes equivalent working directory spellings to the same marker', () => {
+    const equivalentWorkingDirs = [
+      'terraform-infra',
+      './terraform-infra',
+      'terraform-infra/',
+      './terraform-infra/',
+      '  ./terraform-infra//  ',
+    ];
+
+    for (const workingDir of equivalentWorkingDirs) {
+      expect(makeMarker(workingDir, 'default')).toBe(
+        '<!-- terraform-plan-comment:terraform-infra:default -->'
+      );
+    }
+  });
+
+  it('normalizes repeated slashes before building the marker', () => {
+    expect(makeMarker('infra//terraform///prod', 'default')).toBe(
+      '<!-- terraform-plan-comment:infra-terraform-prod:default -->'
+    );
+  });
+
+  it('keeps root working directory spellings as the root marker value', () => {
+    const rootWorkingDirs = [
+      '.',
+      './',
+      './/',
+      '  .//  ',
+    ];
+
+    for (const workingDir of rootWorkingDirs) {
+      expect(makeMarker(workingDir, 'default')).toBe(
+        '<!-- terraform-plan-comment:root:default -->'
+      );
+    }
+  });
+
   it('returns valid HTML comment', () => {
     const marker = makeMarker('.', 'default');
     expect(marker).toMatch(/^<!--.*-->$/);
