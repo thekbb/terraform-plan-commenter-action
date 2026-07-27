@@ -15,7 +15,10 @@ cd terraform-plan-commenter-action
 # Install dependencies
 npm install
 
-# Run tests
+# Run the same checks as the main CI job
+npm run check
+
+# Run tests only
 npm test
 
 # Run tests in watch mode
@@ -34,6 +37,7 @@ npm run lint:fix
 ## Running Tests
 
 ```bash
+npm run check              # Run lint, typecheck, markdown lint, and tests with coverage
 npm test                    # Run once
 npm run test:watch          # Watch mode
 ```
@@ -57,7 +61,7 @@ expected to be updated by later runs of the same scenario.
 1. Fork the repository
 1. Create a feature branch (`git checkout -b my-change`)
 1. Make your changes
-1. Run tests and lint (`npm test && npm run lint`)
+1. Run the local check suite (`npm run check`)
 1. Commit with a descriptive message
 1. Push and open a PR
 
