@@ -2,9 +2,7 @@
 
 /* global fetch */
 
-import helpers from '../helpers.cjs';
-
-const { makeMarker } = helpers;
+import { makeMarker } from '../../dist/helpers.js';
 const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
 const repository = process.env.GITHUB_REPOSITORY || '';
 const pullRequestNumber = Number.parseInt(process.env.PR_NUMBER || '', 10);
