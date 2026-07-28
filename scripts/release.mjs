@@ -120,7 +120,10 @@ const inspectChangelog = (source, nextVersion) => {
     throw new Error('CHANGELOG.md does not contain any released version section.');
   }
 
-  const previousVersion = releasedVersions[0][1];
+  const previousVersion = releasedVersions[0]?.[1];
+  if (!previousVersion) {
+    throw new Error('Could not read the latest released changelog version.');
+  }
   const hasNextVersionSection = source.includes(`## [${nextVersion}] - `);
 
   return {
