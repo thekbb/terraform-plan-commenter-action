@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import formatComment from './format-comment.cjs';
+import formatComment from '../src/format-comment.ts';
 
 const ORIGINAL_ENV = { ...process.env };
 

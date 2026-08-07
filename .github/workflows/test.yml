@@ -37,6 +37,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Verify generated runtime
+        run: npm run build:check
+
       - name: Lint Markdown
         run: npm run lint:md
 

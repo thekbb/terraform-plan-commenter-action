@@ -18,6 +18,9 @@ npm install
 # Run the same checks as the main CI job
 npm run check
 
+# Rebuild the checked-in runtime after changing TypeScript source
+npm run build
+
 # Run tests only
 npm test
 
@@ -37,7 +40,9 @@ npm run lint:fix
 ## Running Tests
 
 ```bash
-npm run check              # Run lint, typecheck, markdown lint, and tests with coverage
+npm run check              # Run lint, typecheck, build verification, docs lint, and coverage
+npm run build              # Rebuild dist/ from TypeScript source
+npm run build:check        # Verify dist/ matches TypeScript source
 npm test                    # Run once
 npm run test:watch          # Watch mode
 ```
@@ -93,11 +98,15 @@ The normal release path is:
 locally. `release:prepare` is intended for the GitHub workflow that prepares
 the release-candidate pull request.
 
-## No Build Step Required
+## Generated Runtime
 
 This repository publishes a [composite action](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action),
-so there is no separate build step or bundled release artifact. Just commit
-your changes to the source files directly.
+with its Node.js runtime compiled from `src/` into `dist/`. Commit both the
+TypeScript source and generated runtime. CI rejects stale generated files with
+`npm run build:check`.
+
+The PR comment runtime is the first incremental move to TypeScript. The action
+remains composite, and other runtime boundaries can migrate independently.
 
 ## Code Style
 

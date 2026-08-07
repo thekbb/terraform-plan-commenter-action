@@ -298,9 +298,10 @@ If you prefer a release-specific tag in `uses:`, pin to the current release inst
 
 This repo ships a
 [composite action](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action),
-not a generated `dist` artifact. The main thing to verify is the signed release
-tag that points at the source you are using. From there, the user-visible trust
-story is:
+with a checked-in `dist` runtime compiled from TypeScript. CI verifies that the
+generated runtime matches its source. The main thing to verify is the signed
+release tag that points at both the source and generated runtime you are using.
+From there, the user-visible trust story is:
 
 - pin to a full 40-character commit SHA if you want an immutable workflow
   reference
@@ -353,10 +354,10 @@ The release path is:
 6. `Publish Verified Release` re-checks those release invariants and then
    publishes the draft release.
 
-This repository publishes a [composite action](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action),
-so it does not produce a generated release artifact. The release verification
-flow is therefore focused on signed tags and source-release integrity rather
-than artifact attestation.
+This repository publishes a [composite action](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action).
+Its checked-in Node.js runtime is generated from TypeScript and verified in CI.
+The release flow remains focused on signed tags and source-release integrity
+rather than separate artifact attestation.
 
 ## Verify a Release
 

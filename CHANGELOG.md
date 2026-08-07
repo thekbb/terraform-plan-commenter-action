@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Begin an incremental move to TypeScript by compiling the PR comment runtime
+  from strict TypeScript while keeping the action composite
+- Verify that the checked-in `dist` output matches its TypeScript source in CI
+- Use a TypeScript and `typescript-eslint` version pairing with declared
+  compatibility for type-aware linting
+
 ### Fixed
 
 - Parse the actual Terraform `Plan:` summary line when building the PR comment
