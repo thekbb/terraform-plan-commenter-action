@@ -97,10 +97,10 @@ runs:
       with:
         github-token: ${{ inputs.github-token }}
         script: |
-          const fs = require('fs');
           const path = require('path');
-          const scriptPath = path.join('${{ github.action_path }}', 'scripts', 'format-comment.cjs');
-          const script = require(scriptPath);
+          const { pathToFileURL } = require('url');
+          const scriptPath = path.join('${{ github.action_path }}', 'dist', 'format-comment.js');
+          const { default: script } = await import(pathToFileURL(scriptPath).href);
           await script({ github, context, core });
 
     - name: Check Plan Status

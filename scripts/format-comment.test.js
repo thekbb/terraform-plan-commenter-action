@@ -10,7 +10,7 @@ import {
   stripRefreshNoise,
   UNSUMMARIZABLE_PLAN,
   THEMES,
-} from './helpers.cjs';
+} from '../src/helpers.ts';
 
 describe('formatSummary', () => {
   it('returns no changes for exit code 0', () => {
