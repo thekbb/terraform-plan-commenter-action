@@ -17,6 +17,7 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+      pull-requests: read
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
       verified_ref: ${{ steps.meta.outputs.verified_ref }}
@@ -85,19 +86,10 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Import release signing key
-        run: gpg --import keys/release-signing-key.asc
-
       - name: Verify signed release tag
         env:
           TAG: ${{ inputs.tag }}
-        run: |
-          if [[ "$(git cat-file -t "$TAG")" != "tag" ]]; then
-            echo "Expected $TAG to be an annotated tag."
-            exit 1
-          fi
-
-          git tag -v "$TAG"
+        run: node scripts/verify-release.ts tag "$TAG"
 
       - name: Verify release commit and metadata
         env:
@@ -113,7 +105,9 @@ jobs:
             exit 1
           fi
 
-          git fetch origin main --depth=1
+          node scripts/verify-release.ts commit "$GITHUB_REPOSITORY" "$tag_commit" "$TAG"
+
+          git fetch origin main
           if ! git merge-base --is-ancestor "$tag_commit" origin/main; then
             echo "Tagged commit $tag_commit is not reachable from origin/main."
             exit 1
@@ -137,7 +131,7 @@ jobs:
             exit 1
           fi
 
-          is_draft="$(gh release view "$TAG" --json isDraft --jq '.isDraft')"
+          is_draft="$(gh release view "$TAG" --repo "github.com/$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
           if [[ "$is_draft" != "true" ]]; then
             echo "Expected a draft release for $TAG before verification."
             exit 1
@@ -158,7 +152,7 @@ jobs:
           VERIFIED_RUN_ID: ${{ needs.verify.outputs.verified_run_id }}
           VERIFIED_SHA: ${{ needs.verify.outputs.verified_sha }}
         run: |
-          gh api \
+          gh api --hostname github.com \
             --method POST \
             -H "Accept: application/vnd.github+json" \
             "/repos/${GITHUB_REPOSITORY}/dispatches" \

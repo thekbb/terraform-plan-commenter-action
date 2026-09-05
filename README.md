@@ -348,18 +348,11 @@ publish a built artifact.
 This repository uses a workflow-driven release flow while keeping release tags
 local and GPG-signed by the maintainer.
 
-The release path is:
-
-1. `Prepare Release` runs from `main` and opens or updates a
-   `release-candidate/vX.Y.Z` pull request.
-2. The release-candidate pull request is reviewed and merged.
-3. The maintainer creates and pushes the signed `vX.Y.Z` tag from the merged
-   `main` commit and moves the major tag such as `v1`.
-4. The maintainer creates a draft GitHub release for `vX.Y.Z`.
-5. `Verify Draft Release` is run from the `vX.Y.Z` tag and verifies the signed
-   tag, release metadata, and draft-release state.
-6. `Publish Verified Release` re-checks those release invariants and then
-   publishes the draft release.
+Both release workflows require the documented tag signing key and verify the
+exact release-candidate merge commit against the GitHub signature policy.
+The signed major tag moves only after the version release has been published,
+verified, and confirmed immutable. Maintainer commands and recovery guidance
+live in [CONTRIBUTING.md](CONTRIBUTING.md#releases).
 
 This repository publishes a [composite action](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action).
 Its checked-in Node.js runtime is generated from TypeScript and verified in CI.
