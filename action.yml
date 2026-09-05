@@ -64,28 +64,24 @@ runs:
 
     - name: Terraform Plan
       id: plan
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      continue-on-error: true
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
+        ACTION_PATH: ${{ github.action_path }}
+        WORKING_DIR: ${{ inputs.working-directory }}
         TF_CLI_ARGS_plan: ${{ inputs.plan-args }}
-      run: |
-        set +e
-        set -o pipefail
-        plan_output_file="$(mktemp "${RUNNER_TEMP:-/tmp}/terraform-plan-comment.XXXXXX")"
-
-        # Capture workspace
-        workspace=$(terraform workspace show)
-        echo "workspace=$workspace" >> "$GITHUB_OUTPUT"
-        echo "stdout_path=$plan_output_file" >> "$GITHUB_OUTPUT"
-
-        # Run plan
-        terraform plan -no-color -input=false -detailed-exitcode 2>&1 | tee "$plan_output_file"
-        exitcode=${PIPESTATUS[0]}
-        echo "exitcode=$exitcode" >> "$GITHUB_OUTPUT"
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const path = require('path');
+          const { pathToFileURL } = require('url');
+          const scriptPath = path.join(process.env.ACTION_PATH, 'dist', 'run-terraform-plan.js');
+          const { default: runTerraformPlan } = await import(pathToFileURL(scriptPath).href);
+          await runTerraformPlan({ core });
 
     - name: Post PR Comment
-      if: github.event_name == 'pull_request'
+      if: >-
+        github.event_name == 'pull_request' && steps.plan.outcome == 'success' &&
+        contains(fromJSON('["0", "1", "2"]'), steps.plan.outputs.exitcode)
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         PLAN_FILE: ${{ steps.plan.outputs.stdout_path }}
@@ -104,7 +100,10 @@ runs:
           await script({ github, context, core });
 
     - name: Check Plan Status
-      if: steps.plan.outputs.exitcode == '1'
+      if: >-
+        !cancelled() && steps.plan.outcome != 'skipped' &&
+        (steps.plan.outcome != 'success' ||
+        !contains(fromJSON('["0", "2"]'), steps.plan.outputs.exitcode))
       shell: bash
       run: |
         echo "::error::Terraform plan failed"
