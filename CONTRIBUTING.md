@@ -125,9 +125,11 @@ does not add files to the action's generated `dist/` runtime.
   `353AAFB21CE81D843634AD3EDE52EEA6AF0D8779` or one of its signing subkeys.
   Verification uses a temporary keyring and checks GnuPG's machine-readable
   fingerprint, independently of the operator's personal keyring.
-- For the exact tagged SHA, GitHub must report `verification.verified: true`
-  and `reason: valid`, with a signature and signed payload. The committer must
-  be `web-flow`, with GitHub's `GitHub <noreply@github.com>` identity.
+- For the exact tagged SHA, GitHub's GraphQL response must report a matching
+  commit OID and a `GpgSignature` with `isValid: true`, `state: VALID`,
+  `wasSignedByGitHub: true`, signer `web-flow`, and approved signing key ID
+  `B5690EEEBB952194`. Missing evidence and GraphQL errors fail verification.
+  Committer name or email alone is not signing-origin evidence.
 - That SHA must also be the recorded merge commit of a merged PR from this
   repository's `release-candidate/vX.Y.Z` branch into its `main` branch.
   Merge or squash-merge the PR through GitHub; local merges and rebase merges
@@ -137,7 +139,25 @@ The commit policy trusts GitHub's API verification result; it does not perform
 an independent local verification of GitHub's commit signature. All release
 API requests explicitly target `github.com`, regardless of `GH_HOST`. See
 [GitHub's signature verification documentation](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification)
-and the [commit API verification fields](https://docs.github.com/en/rest/commits/commits#get-a-commit).
+and the [GraphQL GPG signature fields](https://docs.github.com/en/graphql/reference/git#gpgsignature).
+
+#### GitHub signing-key rotation
+
+The approved GitHub signing key is separate from the maintainer's release-tag
+key.
+
+If GitHub starts signing with a new key, stop release attempts and verify the
+replacement against [GitHub's published web-flow key](https://github.com/web-flow.gpg)
+and the signature evidence for a known GitHub-created merge commit. Do not
+approve a key solely because it appeared in a failed release attempt.
+
+Update `GITHUB_SIGNING_KEY_ID` in `scripts/verify-release.ts`, the corresponding
+IAM policy, tests, and security documentation through reviewed PRs before
+retrying. Document the reason for the rotation and whether the old key remains
+trusted; any overlap must be an explicit reviewed policy change. Do not add an
+environment override, automatically learn keys, or fall back to committer
+identity. If a version tag already exists and its verifier needs changing,
+prepare a new release version rather than moving that tag.
 
 ### Create the version tag
 

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Require GitHub signing-origin evidence and an approved GPG signing key for
+  release-candidate merge commits
 - Begin an incremental move to TypeScript by compiling the PR comment runtime
   from strict TypeScript while keeping the action composite
 - Verify that the checked-in `dist` output matches its TypeScript source in CI

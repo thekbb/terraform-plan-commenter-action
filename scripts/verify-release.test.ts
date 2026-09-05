@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   RELEASE_KEY_FINGERPRINT,
+  GITHUB_SIGNING_KEY_ID,
   assertGitHubCommitSignature,
   assertReleaseCandidate,
   assertReleaseTagSignature,
@@ -25,13 +26,13 @@ const tag = 'v2.0.1';
 const signatureStatus = (signer = RELEASE_KEY_FINGERPRINT, primary = RELEASE_KEY_FINGERPRINT): string =>
   `[GNUPG:] VALIDSIG ${signer} 2026-09-05 1788600000 0 4 0 1 10 00 ${primary}\n`;
 const commit = {
-  sha,
-  committer: { login: 'web-flow' },
-  commit: {
-    committer: { name: 'GitHub', email: 'noreply@github.com' },
-    verification: { verified: true, reason: 'valid', signature: 'signed data', payload: 'commit payload' },
+  oid: sha,
+  signature: {
+    __typename: 'GpgSignature', isValid: true, state: 'VALID', wasSignedByGitHub: true,
+    signer: { login: 'web-flow' }, keyId: GITHUB_SIGNING_KEY_ID,
   },
 };
+const signatureResponse = (value: unknown = commit): unknown => ({ data: { repository: { object: value } } });
 const pull = {
   state: 'closed',
   merged_at: '2026-09-05T12:00:00Z',
@@ -112,29 +113,39 @@ describe('release tag signature policy', () => {
 
 describe('GitHub release commit policy', () => {
   it('accepts GitHub verification of the exact web-flow commit', () => {
-    expect(() => { assertGitHubCommitSignature(commit, sha); }).not.toThrow();
+    expect(() => { assertGitHubCommitSignature(signatureResponse(), sha); }).not.toThrow();
   });
 
   it('rejects a different SHA even when its signature is valid', () => {
-    expect(() => { assertGitHubCommitSignature({ ...commit, sha: 'b'.repeat(40) }, sha); }).toThrow('different');
+    expect(() => { assertGitHubCommitSignature(signatureResponse({ ...commit, oid: 'b'.repeat(40) }), sha); })
+      .toThrow('different');
   });
 
   it.each([
-    { ...commit, committer: null },
-    { ...commit, committer: { login: 'someone-else' } },
-    { ...commit, commit: { ...commit.commit, committer: { name: 'GitHub', email: 'other@example.com' } } },
-  ])('rejects a committer outside the GitHub web-flow policy', (response) => {
+    { signer: null }, { signer: { login: 'someone-else' } }, { wasSignedByGitHub: false },
+  ])('rejects signatures without GitHub web-flow signing origin', (override) => {
+    const response = signatureResponse({ ...commit, signature: { ...commit.signature, ...override } });
     expect(() => { assertGitHubCommitSignature(response, sha); }).toThrow('web-flow');
   });
 
   it.each([
-    { verified: false }, { reason: 'unsigned' }, { signature: null }, { payload: null },
+    { isValid: false }, { state: 'INVALID' }, { __typename: 'SshSignature' },
   ])('rejects invalid or missing signature evidence', (override) => {
-    const response = {
-      ...commit,
-      commit: { ...commit.commit, verification: { ...commit.commit.verification, ...override } },
-    };
-    expect(() => { assertGitHubCommitSignature(response, sha); }).toThrow('valid signature');
+    const response = signatureResponse({ ...commit, signature: { ...commit.signature, ...override } });
+    expect(() => { assertGitHubCommitSignature(response, sha); }).toThrow('valid GPG signature');
+  });
+
+  it('rejects an otherwise valid GitHub signature from an unapproved key', () => {
+    const response = signatureResponse({ ...commit, signature: { ...commit.signature, keyId: '0123456789ABCDEF' } });
+    expect(() => { assertGitHubCommitSignature(response, sha); }).toThrow('approved GitHub signing key');
+  });
+
+  it.each([
+    null, {}, { data: { repository: null } }, signatureResponse(null),
+    signatureResponse({ ...commit, signature: null }),
+    { data: { repository: { object: commit } }, errors: [{ message: 'Partial response' }] },
+  ])('rejects missing signature evidence or GraphQL errors', (response) => {
+    expect(() => { assertGitHubCommitSignature(response, sha); }).toThrow();
   });
 
   it('finds the release-candidate merge on a later API page', () => {
@@ -162,7 +173,7 @@ describe('GitHub release commit policy', () => {
     vi.stubEnv('GH_HOST', 'untrusted.example');
     spawn.mockImplementation((_command, args) => ({
       status: 0,
-      stdout: JSON.stringify(args.includes('--paginate') ? [[pull]] : commit),
+      stdout: JSON.stringify(args.includes('--paginate') ? [[pull]] : signatureResponse()),
       stderr: '',
     }));
 
@@ -172,9 +183,21 @@ describe('GitHub release commit policy', () => {
     for (const [command, args] of spawn.mock.calls) {
       expect(command).toBe('gh');
       expect(args.slice(0, 3)).toEqual(['api', '--hostname', 'github.com']);
-      expect(args.at(-1)).toContain(`/repos/${repository}/commits/${sha}`);
     }
+    const signatureArgs = spawn.mock.calls[0]?.[1];
+    expect(signatureArgs).toContain('graphql');
+    expect(signatureArgs).toContain('owner=thekbb');
+    expect(signatureArgs).toContain('name=terraform-plan-commenter-action');
+    expect(signatureArgs).toContain(`oid=${sha}`);
+    expect(signatureArgs?.find((arg) => arg.startsWith('query='))).toContain('object(oid: $oid)');
+    expect(spawn.mock.calls[1]?.[1].at(-1)).toBe(`/repos/${repository}/commits/${sha}/pulls`);
     expect(spawn.mock.calls[1]?.[1]).toContain('--slurp');
+  });
+
+  it('stops before PR lookup when the signature policy fails', () => {
+    spawn.mockReturnValue({ status: 0, stdout: JSON.stringify(signatureResponse({ ...commit, signature: null })), stderr: '' });
+    expect(() => { verifyReleaseCommit(repository, sha, tag); }).toThrow('valid GPG signature');
+    expect(spawn).toHaveBeenCalledOnce();
   });
 
   it('fails closed when the API is unavailable', () => {
