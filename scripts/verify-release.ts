@@ -4,6 +4,26 @@ import os from 'node:os';
 import path from 'node:path';
 
 export const RELEASE_KEY_FINGERPRINT = '353AAFB21CE81D843634AD3EDE52EEA6AF0D8779';
+export const GITHUB_SIGNING_KEY_ID = 'B5690EEEBB952194';
+
+const signatureQuery = `
+query($owner: String!, $name: String!, $oid: GitObjectID!) {
+  repository(owner: $owner, name: $name) {
+    object(oid: $oid) {
+      ... on Commit {
+        oid
+        signature {
+          __typename
+          isValid
+          state
+          wasSignedByGitHub
+          signer { login }
+          ... on GpgSignature { keyId }
+        }
+      }
+    }
+  }
+}`;
 
 const requireTag = (tag: string): void => {
   if (!/^v\d+\.\d+\.\d+$/u.test(tag)) {
@@ -70,21 +90,23 @@ const object = (value: unknown): Record<string, unknown> =>
     : {};
 
 export const assertGitHubCommitSignature = (response: unknown, sha: string): void => {
-  const commit = object(response);
-  const metadata = object(commit.commit);
-  const committer = object(metadata.committer);
-  const verification = object(metadata.verification);
-  if (commit.sha !== sha) {
+  const result = object(response);
+  if (result.errors !== undefined) {
+    throw new Error('GitHub signature query returned errors; release verification requires complete evidence');
+  }
+  const commit = object(object(object(result.data).repository).object);
+  const signature = object(commit.signature);
+  if (commit.oid !== sha) {
     throw new Error('GitHub returned a different release commit SHA');
   }
-  if (object(commit.committer).login !== 'web-flow' ||
-      committer.name !== 'GitHub' || committer.email !== 'noreply@github.com') {
-    throw new Error('Release commit must be created by GitHub web-flow');
+  if (signature.__typename !== 'GpgSignature' || signature.isValid !== true || signature.state !== 'VALID') {
+    throw new Error('GitHub must report a valid GPG signature for the exact release commit');
   }
-  if (verification.verified !== true || verification.reason !== 'valid' ||
-      typeof verification.signature !== 'string' || !verification.signature.trim() ||
-      typeof verification.payload !== 'string' || !verification.payload.trim()) {
-    throw new Error('GitHub must report a valid signature for the exact release commit');
+  if (signature.wasSignedByGitHub !== true || object(signature.signer).login !== 'web-flow') {
+    throw new Error('Release commit must be signed by GitHub web-flow');
+  }
+  if (signature.keyId !== GITHUB_SIGNING_KEY_ID) {
+    throw new Error(`Release commit must use approved GitHub signing key ${GITHUB_SIGNING_KEY_ID}; review key rotation before retrying`);
   }
 };
 
@@ -119,7 +141,12 @@ export const verifyReleaseCommit = (repository: string, sha: string, tag: string
   }
   const endpoint = `/repos/${repository}/commits/${sha}`;
   const api = ['api', '--hostname', 'github.com', '-H', 'Accept: application/vnd.github+json'];
-  const commit: unknown = JSON.parse(run('gh', [...api, endpoint]).stdout);
+  const separator = repository.indexOf('/');
+  const commit: unknown = JSON.parse(run('gh', [
+    ...api, 'graphql', '-f', `query=${signatureQuery}`,
+    '-f', `owner=${repository.slice(0, separator)}`, '-f', `name=${repository.slice(separator + 1)}`,
+    '-f', `oid=${sha}`,
+  ]).stdout);
   assertGitHubCommitSignature(commit, sha);
   const pulls: unknown = JSON.parse(run('gh', [...api, '--paginate', '--slurp', `${endpoint}/pulls`]).stdout);
   assertReleaseCandidate(pulls, repository, sha, tag);

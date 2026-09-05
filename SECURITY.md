@@ -61,9 +61,14 @@ publish a built artifact.
 
 Both jobs in the tag-push release workflow additionally pin the tag signature to primary key
 `353AAFB21CE81D843634AD3EDE52EEA6AF0D8779`, using an isolated keyring. They require
-GitHub's valid signature result for the exact tagged `web-flow` commit and
-confirm it is the merge result of the corresponding release-candidate PR into
-`main`. This commit check trusts GitHub's API, explicitly on `github.com`.
+GitHub's GraphQL evidence for the exact tagged commit: a valid `GpgSignature`,
+`state: VALID`, `wasSignedByGitHub: true`, signer `web-flow`, and approved key ID
+`B5690EEEBB952194`. Missing evidence or GraphQL errors block the release. They
+also confirm the commit is the merge result of the corresponding same-repository
+release-candidate PR into `main`. This commit check trusts GitHub's API,
+explicitly on `github.com`; it is not independent local signature verification.
+GitHub signing-key changes require reviewed policy updates in both action
+repositories, following the [key-rotation procedure](CONTRIBUTING.md#github-signing-key-rotation).
 
 Publication depends directly on successful verification in the same workflow.
 It uses a job-scoped `GITHUB_TOKEN` with `contents: write`; verification has
