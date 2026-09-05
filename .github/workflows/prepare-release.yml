@@ -70,7 +70,8 @@ jobs:
             Prepares the release metadata for v${{ inputs.version }} from `main`.
 
             Review this PR and merge it through GitHub. Tag the exact resulting
-            merge commit locally with GPG before running draft-release verification.
+            merge commit locally with GPG. Pushing the signed version tag starts
+            verification and publication automatically.
             Move the signed major tag only after verified immutable publication.
           add-paths: |
             CHANGELOG.md

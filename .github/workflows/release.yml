@@ -1,0 +1,140 @@
+name: Verify and Publish Release
+run-name: Release ${{ github.ref_name }}
+
+on:
+  push:
+    tags: ['v[0-9]*.[0-9]*.[0-9]*']
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.event.deleted == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      TAG: ${{ github.ref_name }}
+      WORKFLOW_REF: ${{ github.workflow_ref }}
+      WORKFLOW_SHA: ${{ github.workflow_sha }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24.14.1'
+          cache: 'npm'
+
+      - name: Verify release identity and metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ || "$GITHUB_REF" != "refs/tags/$TAG" ]]; then
+            echo "Expected a version tag push."
+            exit 1
+          fi
+          if [[ "$WORKFLOW_REF" != "$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/tags/$TAG" ||
+                "$WORKFLOW_SHA" != "$GITHUB_SHA" ]]; then
+            echo "Workflow definition does not match the release tag and commit."
+            exit 1
+          fi
+          git fetch --force --no-tags origin "refs/tags/$TAG:refs/tags/$TAG" main:refs/remotes/origin/main
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$GITHUB_SHA"
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          git diff --exit-code "$GITHUB_SHA" origin/main -- .github/workflows
+          node scripts/verify-release.ts tag "$TAG"
+          node scripts/verify-release.ts commit "$GITHUB_REPOSITORY" "$GITHUB_SHA" "$TAG"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { releaseNotes } from './scripts/publish-release.ts';
+          const version = process.env.TAG.slice(1);
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          if (pkg.version !== version || lock.version !== version || lock.packages?.['']?.version !== version) {
+            throw new Error('Package and lockfile versions must match the release tag');
+          }
+          releaseNotes(fs.readFileSync('CHANGELOG.md', 'utf8'), process.env.TAG);
+          NODE
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run release checks
+        run: npm run check
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: read
+    env:
+      TAG: ${{ github.ref_name }}
+      WORKFLOW_REF: ${{ github.workflow_ref }}
+      WORKFLOW_SHA: ${{ github.workflow_sha }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24.14.1'
+
+      - name: Reverify release before publication
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ || "$GITHUB_REF" != "refs/tags/$TAG" ]]; then
+            echo "Expected a version tag push."
+            exit 1
+          fi
+          if [[ "$WORKFLOW_REF" != "$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/tags/$TAG" ||
+                "$WORKFLOW_SHA" != "$GITHUB_SHA" ]]; then
+            echo "Workflow definition does not match the release tag and commit."
+            exit 1
+          fi
+          git fetch --force --no-tags origin "refs/tags/$TAG:refs/tags/$TAG" main:refs/remotes/origin/main
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$GITHUB_SHA"
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          git diff --exit-code "$GITHUB_SHA" origin/main -- .github/workflows
+          node scripts/verify-release.ts tag "$TAG"
+          node scripts/verify-release.ts commit "$GITHUB_REPOSITORY" "$GITHUB_SHA" "$TAG"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { releaseNotes } from './scripts/publish-release.ts';
+          const version = process.env.TAG.slice(1);
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          if (pkg.version !== version || lock.version !== version || lock.packages?.['']?.version !== version) {
+            throw new Error('Package and lockfile versions must match the release tag');
+          }
+          releaseNotes(fs.readFileSync('CHANGELOG.md', 'utf8'), process.env.TAG);
+          NODE
+          echo "tag_object=$(git rev-parse "refs/tags/$TAG")" >> "$GITHUB_OUTPUT"
+
+      - name: Create or resume release and confirm immutable publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG_OBJECT: ${{ steps.release.outputs.tag_object }}
+        run: node scripts/publish-release.ts

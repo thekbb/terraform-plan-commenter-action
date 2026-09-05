@@ -94,12 +94,19 @@ The normal release path is:
 2. Review and merge the generated `release-candidate/vX.Y.Z` pull request.
 3. Verify and tag the exact resulting merge commit using the commands below.
    Later commits on `main` do not change the release candidate's identity.
-4. Create a draft GitHub release for `vX.Y.Z`.
-5. Run `Verify Draft Release` from the `vX.Y.Z` tag, with `tag=vX.Y.Z`.
-6. Let `Publish Verified Release` publish the draft release after the tag and
-   release metadata are re-verified.
-7. After publication succeeds and the release is confirmed immutable, move the
+4. Pushing the signed version tag automatically starts `Verify and Publish Release`
+   (`.github/workflows/release.yml`). Its read-scoped verification job checks the
+   release identity and runs the normal check suite. No draft needs to exist yet.
+5. The write-scoped publication job re-verifies the release, creates a draft
+   using the tagged changelog, publishes it, and confirms immutability.
+6. After publication succeeds and the release is confirmed immutable, move the
    signed major tag to the same release commit using an explicit push lease.
+
+Enable GitHub release immutability in repository settings before releasing.
+Pushing a signed version tag is the publication authorization; there is no
+separate manual dispatch or draft-creation step. Major tags do not trigger this
+workflow. Both jobs use scoped `GITHUB_TOKEN` permissions. `RELEASE_PREP_PAT`
+is used only to open release-candidate PRs that trigger normal CI.
 
 `release:check` validates metadata without writing files. `release:prepare`
 updates only `CHANGELOG.md`, `README.md`, `package.json`, and `package-lock.json`
@@ -153,8 +160,8 @@ node scripts/verify-release.ts tag "$RELEASE_TAG"
 git push origin "refs/tags/$RELEASE_TAG"
 ```
 
-Create the draft release and run verification as described above. Do not move
-the major tag while verification or publication is pending.
+Watch the automatically triggered workflow. Do not move the major tag while
+verification or publication is pending.
 
 ### Move the major tag after publication
 
@@ -182,8 +189,20 @@ If verification or publication fails, leave the major tag at its previous
 release. An existing version tag is never force-moved. If it points at the
 wrong commit or requires code changes, prepare a new release version. An API
 outage or temporarily unavailable merge metadata can be retried against the
-same SHA. If publication succeeded but the major-tag push failed, recover only
+same SHA using GitHub Actions' rerun controls on the original tag-push run.
+If publication succeeded but the major-tag push failed, recover only
 that final step after rechecking publication and the remote tag.
+
+The publication job resumes an existing draft only when its tag, exact target
+SHA, title, changelog notes, prerelease flag, and empty asset list match the
+reviewed release. Conflicting drafts fail without being overwritten. A release
+that is already published and immutable succeeds on rerun without writes.
+API failures are never treated as proof that a release is absent.
+
+Each job fetches the current tag and `main` and checks them against the original
+event SHA. The tagged workflow files must still match `main`. A moved tag or
+changed workflow tree blocks a rerun; prepare a new release version when code
+changes are needed. Concurrent attempts for the same tag are serialized.
 
 ## Generated Runtime
 
