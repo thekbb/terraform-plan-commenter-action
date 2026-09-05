@@ -28,7 +28,7 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24.14.1'
-          cache: 'npm'
+          package-manager-cache: false
 
       - name: Install dependencies
         run: npm ci
@@ -38,6 +38,9 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Build release runtime on Ubuntu
+        run: npm run build
 
       - name: Verify generated runtime
         run: npm run build:check
@@ -67,7 +70,8 @@ jobs:
           title: Prepare v${{ inputs.version }} release
           commit-message: Prepare v${{ inputs.version }} release
           body: |
-            Prepares the release metadata for v${{ inputs.version }} from `main`.
+            Prepares release metadata and Ubuntu-built runtime files for
+            v${{ inputs.version }} from `main`.
 
             Review this PR and merge it through GitHub. Tag the exact resulting
             merge commit locally with GPG. Pushing the signed version tag starts
@@ -78,3 +82,4 @@ jobs:
             README.md
             package.json
             package-lock.json
+            dist/*.js
