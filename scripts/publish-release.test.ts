@@ -1,5 +1,6 @@
+import fs from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { publishRelease, releaseNotes, type Publication } from './publish-release.js';
+import { publishRelease, releaseNotes, runPublication, type Publication } from './publish-release.js';
 
 vi.mock('node:timers/promises', () => ({ setTimeout: () => Promise.resolve() }));
 
@@ -26,8 +27,42 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+});
+
+describe('publication CLI logging', () => {
+  beforeEach(() => {
+    vi.stubEnv('TAG', input.tag);
+    vi.stubEnv('GITHUB_REPOSITORY', input.repository);
+    vi.stubEnv('GITHUB_SHA', input.sha);
+    vi.stubEnv('RELEASE_TAG_OBJECT', input.tagObject);
+    vi.stubEnv('GH_TOKEN', input.token);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(`## [2.0.1] - 2026-09-05\n\n${input.notes}\n`);
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  });
+
+  it('reports a failed request without logging credentials from its error', async () => {
+    fetchMock.mockRejectedValueOnce(new Error(`Authorization: Bearer ${input.token}`));
+    expect(await runPublication()).toBe(1);
+    expect(console.error).toHaveBeenCalledOnce();
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining(`GET /git/ref/tags/${input.tag}`));
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('before receiving a response'));
+    expect(console.error).toHaveBeenCalledWith(expect.not.stringContaining(input.token));
+    expect(console.log).not.toHaveBeenCalled();
+  });
+
+  it('preserves HTTP diagnostics without logging the response body', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ message: input.token }, { status: 403 }));
+    expect(await runPublication()).toBe(1);
+    expect(console.error).toHaveBeenCalledOnce();
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining(`GET /git/ref/tags/${input.tag}`));
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('HTTP 403'));
+    expect(console.error).toHaveBeenCalledWith(expect.not.stringContaining(input.token));
+    expect(console.log).not.toHaveBeenCalled();
+  });
 });
 
 describe('reviewed release notes', () => {
@@ -121,7 +156,7 @@ describe('release publication', () => {
   it('can resume after a draft creation response was lost', async () => {
     respond(ref, [], ref);
     fetchMock.mockRejectedValueOnce(new Error('Connection lost after creation'));
-    await expect(publishRelease(input)).rejects.toThrow('Connection lost');
+    await expect(publishRelease(input)).rejects.toThrow('before receiving a response');
     respond(ref, [draft], ref, published, published, ref);
     await expect(publishRelease(input)).resolves.toBe('published');
     expect(methods().filter((method) => method === 'POST')).toHaveLength(1);
