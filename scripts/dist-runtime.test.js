@@ -15,6 +15,12 @@ describe('compiled action runtime', () => {
     expect(runtime.default).toBeTypeOf('function');
   });
 
+  it('loads the generated Terraform runner entry point', async () => {
+    const runtime = await import('../dist/run-terraform-plan.js');
+
+    expect(runtime.default).toBeTypeOf('function');
+  });
+
   it('loads the end-to-end comment assertion script', () => {
     const result = spawnSync(
       process.execPath,

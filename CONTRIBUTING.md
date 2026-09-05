@@ -47,6 +47,10 @@ npm test                    # Run once
 npm run test:watch          # Watch mode
 ```
 
+The local suite tests the TypeScript plan runner with fake Terraform executables
+to check exit handling, output capture, and temporary-file cleanup. Runner tests
+are also TypeScript so they share the production contracts and type checking.
+
 The repository also has GitHub-side end-to-end workflow tests in
 `.github/workflows/e2e.yml`. Those jobs exercise the checked-in composite
 action against real Terraform fixtures and verify the resulting PR-comment

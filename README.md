@@ -89,6 +89,13 @@ Use `init-args` and `plan-args` only for trusted, repo-controlled values.
 | `plan-exit-code` | Exit code from terraform plan (`0`=no changes, `1`=error, `2`=changes) |
 | `has-changes` | Whether the plan has changes (`true`/`false`) |
 
+Terraform exits `0` (success, no changes) and `2` (success with changes) allow the action to succeed. Exit `1` posts a failure
+comment on pull requests, then fails the action. Workspace detection, temporary
+file, output capture, or unexpected Terraform exit failures stop the action
+without posting a comment or reporting a valid `plan-exit-code`.
+Check the action's outcome as well as its outputs: `has-changes: false` does not
+mean the plan succeeded.
+
 ## Examples
 
 ### Concurrency
