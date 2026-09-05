@@ -1,17 +1,16 @@
 // @ts-check
 
-import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
 /** @type {string[]} */
 const args = process.argv.slice(2);
-const checkOnly = args.includes('--check');
-const prepareOnly = args.includes('--prepare');
-const versionArg = args.find((arg) => !arg.startsWith('-'));
+const [mode, versionArg] = args;
+const checkOnly = mode === '--check';
 
-if (!versionArg) {
-  console.error('Usage: npm run release[:check] -- [--prepare] <version>');
+if (args.length !== 2 || (mode !== '--check' && mode !== '--prepare') || !versionArg) {
+  console.error('Usage: node scripts/release.mjs <--check|--prepare> <version>');
+  console.error('Use npm run release:check or npm run release:prepare. This tool never commits, tags, or pushes.');
   process.exit(1);
 }
 
@@ -40,21 +39,12 @@ const readmePath = path.join(repoRoot, 'README.md');
  *   previousVersion: string,
  *   today: string
  * }} ChangelogUpdate
- * @typedef {{ allowManagedFileChanges?: boolean }} EnsureReleaseOptions
  */
 
 /** @param {string} filePath */
 const readText = (filePath) => fs.readFileSync(filePath, 'utf8');
 /** @param {string} filePath @param {string} text */
 const writeText = (filePath, text) => fs.writeFileSync(filePath, text);
-const managedReleaseFiles = ['CHANGELOG.md', 'README.md', 'package.json', 'package-lock.json'];
-
-/** @param {...string} gitArgs */
-const git = (...gitArgs) => execFileSync('git', gitArgs, {
-  cwd: repoRoot,
-  encoding: 'utf8',
-}).trim();
-
 /** @param {string} value */
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -182,62 +172,6 @@ const updateChangelog = (source, nextVersion) => {
   return { updated, previousVersion, today };
 };
 
-/**
- * @param {string} nextVersion
- * @param {EnsureReleaseOptions} [options]
- */
-const ensureReleaseState = (nextVersion, { allowManagedFileChanges = false } = {}) => {
-  const currentBranch = git('rev-parse', '--abbrev-ref', 'HEAD');
-  if (currentBranch !== 'main') {
-    throw new Error(`Releases must run from main. Current branch: ${currentBranch}`);
-  }
-
-  const status = git('status', '--porcelain');
-  if (status) {
-    if (!allowManagedFileChanges) {
-      throw new Error('Working tree must be clean before running release.');
-    }
-
-    const changedFiles = status
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => line.slice(3).trim());
-
-    const hasUnexpectedChanges = changedFiles.some((file) => !managedReleaseFiles.includes(file));
-    if (hasUnexpectedChanges) {
-      throw new Error(
-        'Only release-managed files may be modified when resuming a partial release.'
-      );
-    }
-  }
-};
-
-/** @param {string} tagName */
-const tagExists = (tagName) => git('tag', '--list', tagName) === tagName;
-
-/** @param {string} tagName */
-const derefTag = (tagName) => git('rev-parse', `${tagName}^{}`);
-
-/**
- * @param {string} tagName
- * @param {string} message
- * @param {{ force?: boolean }} [options]
- */
-const ensureTagOnHead = (tagName, message, { force = false } = {}) => {
-  const head = git('rev-parse', 'HEAD');
-
-  if (tagExists(tagName)) {
-    if (derefTag(tagName) === head && !force) {
-      return;
-    }
-
-    git('tag', '-fa', tagName, '-m', message);
-    return;
-  }
-
-  git('tag', '-a', tagName, '-m', message);
-};
-
 /** @type {VersionedJson} */
 const packageJson = JSON.parse(readText(packageJsonPath));
 /** @type {PackageLockJson} */
@@ -287,43 +221,20 @@ if (changelogState.unreleasedBody) {
   }
 }
 
-const majorTag = `v${version.split('.')[0]}`;
-
 if (checkOnly) {
   console.log(`Release check passed for ${version}`);
   console.log(`Latest released version: ${changelogState.previousVersion}`);
   console.log(`Release date: ${today}`);
-  console.log(`Major tag to move: ${majorTag}`);
   if (isPreparedRelease) {
-    console.log('Release files are already prepared; rerunning release will resume from the git/tag steps.');
+    console.log('Release files are already prepared.');
   }
   console.log('Files to update: CHANGELOG.md, README.md, package.json, package-lock.json');
   process.exit(0);
 }
-
-ensureReleaseState(version, { allowManagedFileChanges: isPreparedRelease });
 
 writeText(changelogPath, nextChangelog);
 writeText(readmePath, nextReadme);
 updateJsonVersion(packageJsonPath, version);
 updateJsonVersion(packageLockPath, version);
 
-if (prepareOnly) {
-  console.log(`Prepared release files for v${version} in the working tree.`);
-  process.exit(0);
-}
-
-git('add', 'CHANGELOG.md', 'README.md', 'package.json', 'package-lock.json');
-try {
-  git('diff', '--cached', '--quiet');
-} catch {
-  git('commit', '-m', `Prepare v${version} release`);
-}
-
-ensureTagOnHead(`v${version}`, `Release v${version}`);
-ensureTagOnHead(majorTag, `Release v${version}`, { force: true });
-git('push', 'origin', 'main');
-git('push', 'origin', `refs/tags/v${version}`);
-git('push', 'origin', `refs/tags/${majorTag}`, '--force');
-
-console.log(`Released v${version} and moved ${majorTag}.`);
+console.log(`Prepared release files for v${version} in the working tree. Review them in the release-candidate PR.`);

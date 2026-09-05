@@ -21,7 +21,7 @@
     "eslint.config.js",
     "scripts/build.mjs",
     "scripts/release.mjs",
-    "scripts/**/*.test.ts",
+    "scripts/**/*.ts",
     "src/**/*.ts",
     "vitest.config.js"
   ],

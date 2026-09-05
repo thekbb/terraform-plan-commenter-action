@@ -7,6 +7,7 @@ on:
 permissions:
   actions: read
   contents: write
+  pull-requests: read
 
 jobs:
   publish:
@@ -48,7 +49,7 @@ jobs:
           VERIFIED_RUN_ID: ${{ github.event.client_payload.verified_run_id }}
           VERIFIED_SHA: ${{ github.event.client_payload.verified_sha }}
         run: |
-          run_json="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${VERIFIED_RUN_ID}")"
+          run_json="$(gh api --hostname github.com "/repos/${GITHUB_REPOSITORY}/actions/runs/${VERIFIED_RUN_ID}")"
 
           run_name="$(jq -r '.name // empty' <<<"$run_json")"
           run_event="$(jq -r '.event // empty' <<<"$run_json")"
@@ -97,9 +98,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Import release signing key
-        run: gpg --import keys/release-signing-key.asc
-
       - name: Verify signed tag and release metadata
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PREP_PAT != '' && secrets.RELEASE_PREP_PAT || github.token }}
@@ -108,12 +106,7 @@ jobs:
         run: |
           version="${TAG#v}"
 
-          if [[ "$(git cat-file -t "$TAG")" != "tag" ]]; then
-            echo "Expected $TAG to be an annotated tag."
-            exit 1
-          fi
-
-          git tag -v "$TAG"
+          node scripts/verify-release.ts tag "$TAG"
 
           tag_commit="$(git rev-list -n 1 "$TAG")"
           head_commit="$(git rev-parse HEAD)"
@@ -128,7 +121,9 @@ jobs:
             exit 1
           fi
 
-          git fetch origin main --depth=1
+          node scripts/verify-release.ts commit "$GITHUB_REPOSITORY" "$tag_commit" "$TAG"
+
+          git fetch origin main
           if ! git merge-base --is-ancestor "$tag_commit" origin/main; then
             echo "Tagged commit $tag_commit is not reachable from origin/main."
             exit 1
@@ -152,7 +147,7 @@ jobs:
             exit 1
           fi
 
-          is_draft="$(gh release view "$TAG" --json isDraft --jq '.isDraft')"
+          is_draft="$(gh release view "$TAG" --repo "github.com/$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
           if [[ "$is_draft" != "true" ]]; then
             echo "Expected a draft release for $TAG before publishing."
             exit 1
@@ -162,7 +157,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PREP_PAT != '' && secrets.RELEASE_PREP_PAT || github.token }}
           TAG: ${{ github.event.client_payload.tag }}
-        run: gh release edit "$TAG" --draft=false
+        run: gh release edit "$TAG" --repo "github.com/$GITHUB_REPOSITORY" --draft=false
 
       - name: Verify published release is immutable
         env:
@@ -170,8 +165,8 @@ jobs:
           TAG: ${{ github.event.client_payload.tag }}
         run: |
           for attempt in 1 2 3 4 5; do
-            is_draft="$(gh release view "$TAG" --json isDraft --jq '.isDraft')"
-            is_immutable="$(gh release view "$TAG" --json isImmutable --jq '.isImmutable')"
+            is_draft="$(gh release view "$TAG" --repo "github.com/$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
+            is_immutable="$(gh release view "$TAG" --repo "github.com/$GITHUB_REPOSITORY" --json isImmutable --jq '.isImmutable')"
 
             if [[ "$is_draft" == "false" && "$is_immutable" == "true" ]]; then
               exit 0

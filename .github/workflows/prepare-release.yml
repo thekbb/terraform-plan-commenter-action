@@ -69,9 +69,9 @@ jobs:
           body: |
             Prepares the release metadata for v${{ inputs.version }} from `main`.
 
-            This PR is generated on Linux and is the exact commit that should be
-            reviewed, merged, and then tagged locally with GPG before the draft
-            release verification flow runs.
+            Review this PR and merge it through GitHub. Tag the exact resulting
+            merge commit locally with GPG before running draft-release verification.
+            Move the signed major tag only after verified immutable publication.
           add-paths: |
             CHANGELOG.md
             README.md

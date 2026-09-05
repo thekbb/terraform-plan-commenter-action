@@ -36,9 +36,9 @@ uses: thekbb/terraform-plan-commenter-action@<full-commit-sha>
 
 ## Trust Model & Limits
 
-This repo ships a composite action, not a built `dist` artifact. The release
-story is based on signed release tags, immutable GitHub releases, and consumer
-pinning to a full commit SHA.
+This repo ships a composite action with a checked-in JavaScript runtime compiled
+from TypeScript. The release story is based on signed release tags, immutable
+GitHub releases, and consumer pinning to a full commit SHA.
 
 Use this action only if you are comfortable posting Terraform plan output back
 to GitHub as a PR comment.
@@ -58,3 +58,13 @@ the expected commit on `main`, and that the published GitHub release is
 immutable. It does not prove anything about GitHub settings outside the repo,
 and it does not prove artifact provenance because this repository does not
 publish a built artifact.
+
+The release workflows additionally pin the tag signature to primary key
+`353AAFB21CE81D843634AD3EDE52EEA6AF0D8779`, using an isolated keyring. They require
+GitHub's valid signature result for the exact tagged `web-flow` commit and
+confirm it is the merge result of the corresponding release-candidate PR into
+`main`. This commit check trusts GitHub's API, explicitly on `github.com`.
+
+The signed major tag is updated only after verified immutable publication, with
+an explicit push lease protecting against concurrent changes. See the
+[release procedure and signature policy](CONTRIBUTING.md#releases).
