@@ -348,8 +348,10 @@ publish a built artifact.
 This repository uses a workflow-driven release flow while keeping release tags
 local and GPG-signed by the maintainer.
 
-Both release workflows require the documented tag signing key and verify the
-exact release-candidate merge commit against the GitHub signature policy.
+Pushing a signed version tag starts one workflow with verification followed by
+publication. Both jobs require the documented tag signing key and verify the
+exact release-candidate merge commit against the GitHub signature policy. The
+publication job creates its draft from the tagged changelog automatically.
 The signed major tag moves only after the version release has been published,
 verified, and confirmed immutable. Maintainer commands and recovery guidance
 live in [CONTRIBUTING.md](CONTRIBUTING.md#releases).

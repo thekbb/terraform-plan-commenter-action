@@ -59,11 +59,18 @@ immutable. It does not prove anything about GitHub settings outside the repo,
 and it does not prove artifact provenance because this repository does not
 publish a built artifact.
 
-The release workflows additionally pin the tag signature to primary key
+Both jobs in the tag-push release workflow additionally pin the tag signature to primary key
 `353AAFB21CE81D843634AD3EDE52EEA6AF0D8779`, using an isolated keyring. They require
 GitHub's valid signature result for the exact tagged `web-flow` commit and
 confirm it is the merge result of the corresponding release-candidate PR into
 `main`. This commit check trusts GitHub's API, explicitly on `github.com`.
+
+Publication depends directly on successful verification in the same workflow.
+It uses a job-scoped `GITHUB_TOKEN` with `contents: write`; verification has
+`contents: read`. Both have `pull-requests: read` for the release-candidate
+check. Both jobs compare the event SHA, checked-out SHA, current signed tag,
+workflow ref and SHA, ancestry, workflow tree on `main`, and package metadata.
+The publication job alone creates or resumes a draft and publishes it.
 
 The signed major tag is updated only after verified immutable publication, with
 an explicit push lease protecting against concurrent changes. See the
