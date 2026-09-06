@@ -73,7 +73,7 @@ export const parsePlanSummary = (plan, exitCode) => {
     }
     return { kind: 'counts', counts };
 };
-const isSummaryTheme = (theme) => Object.prototype.hasOwnProperty.call(THEMES, theme);
+export const isSummaryTheme = (theme) => Object.prototype.hasOwnProperty.call(THEMES, theme);
 export const renderPlanSummary = (summary, theme = 'default') => {
     if (summary.kind === 'failed') {
         return PLAN_FAILED_SUMMARY;

@@ -2,18 +2,19 @@ import fs from 'node:fs';
 import { formatSummary, stripRefreshNoise, } from './helpers.js';
 import { authenticatedAuthor, commentIdentity, identityMarker, selectOwnedComment } from './comment-identity.js';
 import { formatDirectory, formatPlanBlock } from './comment-rendering.js';
+import { parsePlanExitCode, parseSummaryTheme } from './config.js';
 const GITHUB_COMMENT_LIMIT = 65000;
 const environmentValue = (name, fallback) => {
     const value = process.env[name];
     return value === undefined || value === '' ? fallback : value;
 };
 export default async function formatComment({ github, context, core, }) {
-    const exitCode = environmentValue('PLAN_EXIT_CODE', '0');
     const workingDir = environmentValue('WORKING_DIR', '.');
     const workspace = environmentValue('TF_WORKSPACE', 'default');
-    const theme = environmentValue('SUMMARY_THEME', 'default');
     const commentNote = process.env.COMMENT_NOTE ?? '';
     try {
+        const exitCode = parsePlanExitCode(process.env.PLAN_EXIT_CODE);
+        const theme = parseSummaryTheme(process.env.SUMMARY_THEME);
         const plan = process.env.PLAN_FILE
             ? fs.readFileSync(process.env.PLAN_FILE, 'utf8')
             : (process.env.PLAN ?? '');

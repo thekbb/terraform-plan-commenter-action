@@ -47,8 +47,24 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Validate Inputs
+      id: inputs
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        SETUP_TERRAFORM: ${{ inputs.setup-terraform }}
+        SUMMARY_THEME: ${{ inputs.summary-theme }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const path = require('path');
+          const { pathToFileURL } = require('url');
+          const scriptPath = path.join(process.env.ACTION_PATH, 'dist', 'validate-inputs.js');
+          const { default: validateInputs } = await import(pathToFileURL(scriptPath).href);
+          validateInputs({ core });
+
     - name: Setup Terraform
-      if: inputs.setup-terraform == 'true'
+      if: steps.inputs.outputs.setup-terraform == 'true'
       uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
       with:
         terraform_version: ${{ inputs.terraform-version }}
@@ -88,7 +104,7 @@ runs:
         PLAN_EXIT_CODE: ${{ steps.plan.outputs.exitcode }}
         WORKING_DIR: ${{ inputs.working-directory }}
         TF_WORKSPACE: ${{ steps.plan.outputs.workspace }}
-        SUMMARY_THEME: ${{ inputs.summary-theme }}
+        SUMMARY_THEME: ${{ steps.inputs.outputs.summary-theme }}
         COMMENT_NOTE: ${{ env.COMMENT_NOTE }}
       with:
         github-token: ${{ inputs.github-token }}
