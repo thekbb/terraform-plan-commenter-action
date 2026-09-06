@@ -70,6 +70,7 @@ expected to be updated by later runs of the same scenario.
 1. Fork the repository
 1. Create a feature branch (`git checkout -b my-change`)
 1. Make your changes
+1. If you changed `src/`, run `npm run build` and include the generated `dist/` changes
 1. Run the local check suite (`npm run check`)
 1. Commit with a descriptive message
 1. Push and open a PR
@@ -254,6 +255,28 @@ event SHA. The tagged workflow files must still match `main`. A moved tag or
 changed workflow tree blocks a rerun; prepare a new release version when code
 changes are needed. Concurrent attempts for the same tag are serialized.
 
+### Inspect a release tag
+
+To check a tag manually, run these commands from a trusted checkout and replace
+`vX.Y.Z` with the release version:
+
+```bash
+gpg --import keys/release-signing-key.asc
+gpg --show-keys --fingerprint keys/release-signing-key.asc
+git fetch origin main --tags
+git verify-tag vX.Y.Z
+git rev-parse 'vX.Y.Z^{commit}'
+git merge-base --is-ancestor 'vX.Y.Z^{commit}' origin/main
+```
+
+The fingerprint must match `353AAFB21CE81D843634AD3EDE52EEA6AF0D8779`.
+For a separate cross-check, the public key is also published on
+`keys.openpgp.org` for `kevin@thekbb.net`.
+
+These commands check the tag signature and reachability from `main`, not
+immutable publication or runtime provenance. Use
+[`verify-release.sh`](README.md#verify-a-release) for those checks.
+
 ## Generated Runtime
 
 This repository publishes a [composite action](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action),
@@ -261,8 +284,8 @@ with its Node.js runtime compiled from `src/` into `dist/`. Commit both the
 TypeScript source and generated runtime. CI rejects stale generated files with
 `npm run build:check`.
 
-The PR comment runtime is the first incremental move to TypeScript. The action
-remains composite, and other runtime boundaries can migrate independently.
+Input validation, the Terraform runner, and comment handling live in `src/`.
+The action remains composite; `action.yml` wires the steps together.
 
 ## Code Style
 

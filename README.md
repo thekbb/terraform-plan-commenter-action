@@ -4,25 +4,24 @@
 [![codecov](https://codecov.io/gh/thekbb/terraform-plan-commenter-action/branch/main/graph/badge.svg)](https://codecov.io/gh/thekbb/terraform-plan-commenter-action)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A GitHub Action that runs `terraform plan` and posts a formatted comment to your pull request.
-Subsequent pushes to the PR's branch will update the existing comment with the latest plan.
+Runs `terraform plan` and posts the result to your pull request. Reviewers can
+see the proposed changes without running Terraform themselves.
 
-This makes it easy for reviewers (who won't have access to run terraform plan)
-to quickly and easily see what infrastructure changes would be applied by the PR.
+Each directory/workspace pair gets its own comment. Later runs update that
+comment with the latest plan. The summary shows imports, creates, updates, and
+destroys; the full plan sits in a collapsible section. Plans too large for a
+comment get a summary and a link to the workflow logs instead.
 
-![screenshot](images/pr-comment-screenshot.png)
-
-## Features
-
-- Updates existing comments instead of creating duplicates
-- Collapsible plan output section
-- handles large plans gracefully-ish with truncation
-- Shows plan summary, count of import/create/update/destroy
-- Multi-directory support via `working-directory` input (for mono repos)
-- Terraform workspace support - works with multiple workspaces (dev/staging/prod)
-- Accessibility themes - colorblind-friendly emoji options
+![Terraform plan comment](images/pr-comment-screenshot.png)
 
 ## Usage
+
+This example uses AWS OIDC. Replace the role and region with your own, or use
+your provider's authentication step. Replace `<full-commit-sha>` with the
+reviewed release commit you want to run.
+
+Commit `.terraform.lock.hcl` before using `-lockfile=readonly`. The runner needs
+access to your backend, providers, modules, and the infrastructure being planned.
 
 ```yaml
 name: Terraform Plan
@@ -40,33 +39,61 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-      id-token: write  # If using OIDC
+      id-token: write  # For AWS OIDC, not PR comments
 
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
 
-      # Configure your cloud credentials (example: AWS OIDC)
-      - uses: aws-actions/configure-aws-credentials@v5
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/my-role
           aws-region: us-east-2
 
-      # Run the plan
-      # Prefer a full 40-character commit SHA in production. Keep the release tag
-      # in a trailing comment for human review.
       - uses: thekbb/terraform-plan-commenter-action@<full-commit-sha> # v2.0.0
         with:
+          terraform-version: '1.14.3'
           init-args: '-lockfile=readonly'
 ```
 
-That is the recommended starting point:
+The examples use Terraform `1.14.3`, matching the hosted tests. Choose a version
+that works with your configuration and pin it. Omitting `terraform-version`
+still uses `latest`.
 
-- trigger on `pull_request`, not `pull_request_target`
-- grant only the permissions the job needs
-- use a full 40-character commit SHA if you want an immutable workflow reference
-- keep the release tag in a trailing comment so humans can see the intended version quickly
+### Permissions and trust
+
+`pull-requests: write` is needed to post comments. `contents: read` lets checkout
+read the repository. Cloud authentication is separate; grant `id-token: write`
+only when your authentication step uses OIDC. The default `${{ github.token }}`
+is enough for commenting when the job has permission.
+
+Use this with Terraform code you trust. The action runs that code with the
+credentials available to the job, and posts plan output where anyone who can
+read the PR can see it. Sensitive values may be redacted by Terraform, but
+resource names, identifiers, and other operational details can still appear.
+
+Keep `init-args`, `plan-args`, and `COMMENT_NOTE` workflow-controlled. Do not
+fill them from PR titles, descriptions, comments, or other untrusted input.
+
+Use `pull_request`, not `pull_request_target`, for these examples. Fork PRs
+normally receive a read-only token and no repository secrets, so this workflow
+cannot generally plan and post comments for them. Do not switch to
+`pull_request_target` just to get credentials or comment permissions for
+untrusted code. See [GitHub's fork workflow restrictions][fork-workflows] and
+[SECURITY.md](SECURITY.md) for the trust limits.
+
+### Supported runners
+
+Linux is the supported runner platform. The end-to-end tests run on
+GitHub-hosted Ubuntu (`ubuntu-latest`). Self-hosted Linux runners are not covered
+by those tests; keep the runner current and provide the tools and network
+access required by your Terraform configuration. macOS and Windows are not
+supported or tested for running the action.
+
+The action installs Terraform unless `setup-terraform` is `false`. If you skip
+setup, Terraform must already be on `PATH`, with the Terraform wrapper disabled.
 
 ## Inputs
 
@@ -75,18 +102,151 @@ That is the recommended starting point:
 | `github-token` | GitHub token for posting PR comments | No | `${{ github.token }}` |
 | `working-directory` | Directory containing Terraform configuration | No | `.` |
 | `terraform-version` | Terraform version to use | No | `latest` |
-| `setup-terraform` | Whether to setup Terraform (set `false` if already configured) | No | `true` |
+| `setup-terraform` | Whether to install Terraform (`false` if already configured) | No | `true` |
 | `init-args` | Trusted-only additional arguments for `terraform init` | No | `''` |
 | `plan-args` | Trusted-only additional arguments for `terraform plan` | No | `''` |
 | `summary-theme` | Emoji theme: `default`, `colorblind`, or `minimal` | No | `default` |
 
-Use `init-args` and `plan-args` only for trusted, repo-controlled values.
+`setup-terraform` and `summary-theme` are validated before setup or
+initialization. Their values are case-sensitive and are not trimmed. Omitted
+or empty values use the defaults; other values fail with an input-specific
+error instead of silently skipping setup or changing themes.
 
-Inputs are validated before Terraform setup or initialization. `setup-terraform`
-accepts only `true` or `false`; `summary-theme` accepts only `default`,
-`colorblind`, or `minimal`. Values are case-sensitive and are not trimmed.
-Omitted or empty values use the documented defaults; other values fail with
-an input-specific error instead of silently skipping setup or changing themes.
+## Outputs
+
+| Output | Description |
+| ------ | ----------- |
+| `plan-exit-code` | Terraform plan exit code: `0` = no changes, `1` = error, `2` = changes |
+| `has-changes` | Whether Terraform reported changes: `true` or `false` |
+
+Terraform exits `0` and `2` allow the action to succeed. Exit `1` posts a failure
+comment on pull requests, then fails the action. Workspace detection, temporary
+file, output capture, or unexpected Terraform exit failures stop the action
+without posting a comment or reporting a valid `plan-exit-code`.
+
+Check the action's outcome as well as its outputs. `has-changes: false` does not
+mean the plan succeeded. A missing or malformed recorded exit code is an error,
+not a successful no-change plan.
+
+## Examples
+
+These snippets use release tags to keep them readable. Use full commit SHAs
+for third-party actions in production; see [Update Strategy](#update-strategy).
+
+### Subdirectory / Monorepo
+
+```yaml
+- uses: thekbb/terraform-plan-commenter-action@v2.0.0
+  with:
+    terraform-version: '1.14.3'
+    working-directory: 'infrastructure/'
+    init-args: '-lockfile=readonly'
+```
+
+### Var Files
+
+```yaml
+- uses: thekbb/terraform-plan-commenter-action@v2.0.0
+  with:
+    terraform-version: '1.14.3'
+    init-args: '-lockfile=readonly'
+    plan-args: '-var-file=prod.tfvars'
+```
+
+### Skip Terraform Setup
+
+If Terraform is already installed, set `setup-terraform: 'false'`. When using
+`hashicorp/setup-terraform`, disable its wrapper: this action captures output
+itself.
+
+```yaml
+- uses: hashicorp/setup-terraform@v4.0.1
+  with:
+    terraform_version: '1.14.3'
+    terraform_wrapper: false
+
+- uses: thekbb/terraform-plan-commenter-action@v2.0.0
+  with:
+    setup-terraform: 'false'
+    init-args: '-lockfile=readonly'
+```
+
+Skipping setup does not skip `terraform init`.
+
+### Colorblind-Friendly Theme
+
+```yaml
+- uses: thekbb/terraform-plan-commenter-action@v2.0.0
+  with:
+    terraform-version: '1.14.3'
+    init-args: '-lockfile=readonly'
+    summary-theme: 'colorblind'
+```
+
+| Theme | Import | Create | Update | Destroy |
+| ----- | ------ | ------ | ------- | ------- |
+| `default` | 🔵 | 🟢 | 🟡 | 🔴 |
+| `colorblind` | 📥 | ➕ | ✏️ | ➖ |
+| `minimal` | [import] | [create] | [update] | [destroy] |
+
+## Workspaces
+
+The action reads the current workspace with `terraform workspace show`. Each
+directory/workspace pair gets a separate comment.
+
+### Running in a specific workspace
+
+For an existing workspace, set `TF_WORKSPACE` on the action step. Terraform
+uses it during initialization and planning. This selects a workspace; it does
+not create one. See [Terraform's `TF_WORKSPACE` documentation][tf-workspace].
+
+```yaml
+- uses: thekbb/terraform-plan-commenter-action@v2.0.0
+  env:
+    TF_WORKSPACE: staging
+  with:
+    terraform-version: '1.14.3'
+    working-directory: ./infrastructure
+    init-args: '-lockfile=readonly'
+```
+
+### Matrix example (multiple workspaces)
+
+Replace the `plan` job in the starter workflow with this job. It assumes the
+backend already has `dev`, `staging`, and `prod` workspaces. Configure the AWS
+roles and region for your repository.
+
+```yaml
+plan:
+  runs-on: ubuntu-latest
+  strategy:
+    matrix:
+      workspace: [dev, staging, prod]
+  concurrency:
+    group: terraform-${{ matrix.workspace }}
+    cancel-in-progress: false
+  permissions:
+    contents: read
+    pull-requests: write
+    id-token: write
+  steps:
+    - uses: actions/checkout@v6
+      with:
+        persist-credentials: false
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v5
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/terraform-${{ matrix.workspace }}
+        aws-region: us-east-2
+
+    - uses: thekbb/terraform-plan-commenter-action@v2.0.0
+      env:
+        TF_WORKSPACE: ${{ matrix.workspace }}
+      with:
+        terraform-version: '1.14.3'
+        init-args: '-lockfile=readonly'
+```
 
 ## Comment Ownership and Identity
 
@@ -99,24 +259,44 @@ The token still needs permission to read and write PR comments.
 
 Each directory/workspace pair has a versioned, SHA-256-based marker. Equivalent
 spellings such as `infra/prod`, `./infra/prod/`, `infra//prod`, `infra/./prod`,
-and `infra/prod/.` share an
-identity. `infra/prod` and `infra-prod` do not; neither do the repository root
-and a directory literally named `root`. Whitespace in directory names is
-preserved. Parent (`..`) segments and symlink aliases are not collapsed.
-Hashing safely encodes the identity; it does not hide directory names
-already displayed in the comment or plan.
+and `infra/prod/.` share an identity. `infra/prod` and `infra-prod` do not;
+neither do the repository root and a directory literally named `root`.
+Whitespace in directory names is preserved. Parent (`..`) segments and symlink
+aliases are not collapsed. Hashing encodes the identity; it does not hide
+directory names already displayed in the comment or plan.
 
 During v2, existing comments with legacy markers or earlier hashed dot-segment
-spellings can be upgraded in place only
-when the authenticated author matches and the original Terraform Plan header
-confirms the directory. Ambiguous or edited legacy headers are left untouched
-and a new comment is created. Switching token authors also creates a new
-comment; comments belonging to the previous author are not adopted.
+spellings can be upgraded in place only when the authenticated author matches
+and the original Terraform Plan header confirms the directory. Ambiguous or
+edited legacy headers are left untouched and a new comment is created.
+Switching token authors also creates a new comment; comments belonging to the
+previous author are not adopted.
 
 If multiple owned comments match, the action prefers the new marker format,
 updates the lowest comment ID within that format, and warns about duplicates.
 Other comments are never deleted. Legacy migration support is limited to v2;
 future removal belongs in a major release.
+
+### Concurrency
+
+Use GitHub Actions concurrency to avoid overlapping runs against the same
+state. The starter example uses one group for all plans; the matrix example
+uses one per workspace. Match the group used by other workflows, including
+apply workflows, that access the same state. Terraform state locking still
+applies.
+
+For independent states, you can group comment updates by PR, directory, and
+workspace instead. For a job with `directory` and `workspace` matrix values:
+
+```yaml
+concurrency:
+  group: plan-${{ github.event.pull_request.number }}-${{ matrix.directory }}-${{ matrix.workspace }}
+  cancel-in-progress: false
+```
+
+Use the same group across workflows that update the same plan comment. This
+reduces creation races but does not merge existing duplicates. PR-scoped
+concurrency does not serialize other PRs or apply jobs against a shared state.
 
 ## Comment Rendering
 
@@ -128,195 +308,52 @@ are escaped too. These display changes do not change comment identity.
 `COMMENT_NOTE`, when set by the workflow, remains trusted Markdown. Do not
 populate it from untrusted pull-request content.
 
-## Outputs
+## Troubleshooting
 
-| Output | Description |
-| ------ | ----------- |
-| `plan-exit-code` | Exit code from terraform plan (`0`=no changes, `1`=error, `2`=changes) |
-| `has-changes` | Whether the plan has changes (`true`/`false`) |
+### No comment or permission denied
 
-Terraform exits `0` (success, no changes) and `2` (success with changes) allow the action to succeed. Exit `1` posts a failure
-comment on pull requests, then fails the action. Workspace detection, temporary
-file, output capture, or unexpected Terraform exit failures stop the action
-without posting a comment or reporting a valid `plan-exit-code`.
-Check the action's outcome as well as its outputs: `has-changes: false` does not
-mean the plan succeeded.
+Comments are posted only for `pull_request` events after a recorded plan exit
+code of `0`, `1`, or `2`. Check the setup, init, and plan steps first, then check
+the token's PR permissions. Fork restrictions still apply even if the workflow
+requests `pull-requests: write`.
 
-Commenting requires an explicit recorded exit code of `0`, `1`, or `2`.
-A missing or malformed code fails before reading the plan or contacting GitHub;
-it is never treated as a successful no-change plan.
+An authenticated-author lookup failure stops commenting. The action does not
+fall back to matching arbitrary bot comments.
 
-## Examples
+### A new comment appeared instead of an update
 
-### Concurrency
+Check whether the token author, directory, or workspace changed. Legacy
+comments with edited or ambiguous headers are left alone. The workflow logs
+include the comment ID and URL after a successful create, update, or migration.
+See [Comment Ownership and Identity](#comment-ownership-and-identity).
 
-Though Terraform state locking protects against concurrent runs, multiple commits in the same PR, multiple PRs, or a
-Terraform apply from another GitHub Action can still collide and may require manually unlocking state.
+### The full plan is missing
 
-You should use GitHub actions concurrency to queue up jobs. You'll need to get fancier
-if you have multiple workspaces, or a matrix setup - action inputs and matrix values will help make the group name.
+When the rendered comment exceeds the action's 65,000-character limit, the
+action omits the full plan and logs a warning with its size. Read the Terraform
+Plan step's logs for the full output. The comment links to that run when the
+GitHub server URL is available.
 
-```yaml
-concurrency:
-  group: terraform
-  cancel-in-progress: false
-```
+### Invalid input or missing workspace
 
-For independent plans, serialize comment updates by PR, working directory, and
-workspace. For example, on a job whose matrix defines `directory` and
-`workspace`:
+Use the exact `setup-terraform` and `summary-theme` values listed above; for
+example, `false`, not `flase`. If using `TF_WORKSPACE`, check that the workspace
+exists in the configured backend and the credentials can access it.
 
-```yaml
-concurrency:
-  group: plan-${{ github.event.pull_request.number }}-${{ matrix.directory }}-${{ matrix.workspace }}
-  cancel-in-progress: false
-```
-
-Use the same group across workflows that update the same plan comment. This
-reduces creation races but does not merge existing duplicates. Keep any broader
-serialization needed to protect a shared Terraform state; PR-scoped concurrency
-does not replace state locking.
-
-### Specific Terraform Version
-
-```yaml
-- uses: thekbb/terraform-plan-commenter-action@v2.0.0
-  with:
-    init-args: '-lockfile=readonly'
-    terraform-version: '1.14.3'
-```
-
-### Subdirectory / Monorepo
-
-```yaml
-- uses: thekbb/terraform-plan-commenter-action@v2.0.0
-  with:
-    init-args: '-lockfile=readonly'
-    working-directory: 'infrastructure/'
-```
-
-### Var Files
-
-```yaml
-- uses: thekbb/terraform-plan-commenter-action@v2.0.0
-  with:
-    init-args: '-lockfile=readonly'
-    plan-args: '-var-file=prod.tfvars'
-```
-
-### Skip Terraform Setup
-
-If you're using a matrix or already have Terraform configured:
-
-```yaml
-- uses: hashicorp/setup-terraform@v3
-  with:
-    terraform_version: '1.14.3'
-    terraform_wrapper: false  # Important if capturing output
-
-- uses: thekbb/terraform-plan-commenter-action@v2.0.0
-  with:
-    init-args: '-lockfile=readonly'
-    setup-terraform: 'false'
-```
-
-### Colorblind-Friendly Theme
-
-```yaml
-- uses: thekbb/terraform-plan-commenter-action@v2.0.0
-  with:
-    init-args: '-lockfile=readonly'
-    summary-theme: 'colorblind'
-```
-
-Available themes:
-
-| Theme | Import | Create | Update | Destroy |
-| ----- | ------ | ------ | ------ | ------- |
-| `default` | 🔵 | 🟢 | 🟡 | 🔴 |
-| `colorblind` | 📥 | ➕ | ✏️ | ➖ |
-| `minimal` | [import] | [create] | [update] | [destroy] |
-
-## Workspaces
-
-The action automatically detects your Terraform workspace:
-
-- **Workspaces**: Detects the current workspace (via `terraform workspace show`) and creates separate comments for
-  each workspace (dev/staging/prod)
-- **Monorepos**: Each `working-directory` gets its own independent comment
-- **Matrix builds**: Jobs running different workspace/directory combinations maintain
-  separate comments
-
-### Running in a specific workspace
-
-Select the workspace before running the action:
-
-```yaml
-- name: Select Terraform workspace
-  run: terraform workspace select staging || terraform workspace new staging
-  working-directory: ./infrastructure
-
-- uses: thekbb/terraform-plan-commenter-action@v2.0.0
-  with:
-    init-args: '-lockfile=readonly'
-    working-directory: ./infrastructure
-```
-
-### Matrix example (multiple workspaces)
-
-```yaml
-concurrency:
-  group: terraform
-  cancel-in-progress: false
-
-strategy:
-  matrix:
-    workspace: [dev, staging, prod]
-
-steps:
-  - uses: actions/checkout@v6
-    with:
-      persist-credentials: false
-
-  - name: Configure AWS
-    uses: aws-actions/configure-aws-credentials@v5
-    with:
-      role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/terraform-${{ matrix.workspace }}
-      aws-region: us-east-1
-
-  - name: Select workspace
-    run: terraform workspace select ${{ matrix.workspace }} || terraform workspace new ${{ matrix.workspace }}
-
-  - uses: thekbb/terraform-plan-commenter-action@v2.0.0
-    with:
-      init-args: '-lockfile=readonly'
-```
-
-Each workspace gets its own independent PR comment that updates separately!
-
-## PR Comment Preview
-
-The action posts a comment like this:
-
-> ### Terraform Plan
->
-> <details><summary>🔵 <b>import</b> <code>2</code> · 🟢 <b>create</b> <code>3</code> ·
-> 🟡 <b>update</b> <code>1</code> · 🔴 <b>destroy</b> <code>0</code></summary>
->
-> ```terraform
-> Terraform used the selected providers to generate the following execution plan:
-> ```
->
-> </details>
->
-> *Pusher: @username, Action: `pull_request`*
+With `-lockfile=readonly`, initialization can also fail if the provider lock
+file needs updating. Update and review it locally, then commit it.
 
 ## Update Strategy
 
-For security, prefer a full 40-character commit SHA over a moving tag such as `@v1`. GitHub recommends full-length
-commit SHAs as the immutable option for third-party actions in its
-[Secure use reference](https://docs.github.com/en/actions/reference/security/secure-use). If you want automatic
-updates while still using immutable workflow references, enable Dependabot for GitHub Actions in your repository:
+Use a full 40-character commit SHA for an immutable action reference. Keep the
+release tag in a trailing comment so you can see what the SHA refers to. This
+also applies to checkout and credential actions. See [GitHub's secure use reference][secure-use].
+
+Use a release-specific tag such as `@v2.0.0` if you prefer a readable release
+reference. A major tag such as `@v2` moves with releases; it is not immutable.
+See [GitHub's release and tag guidance][immutable-releases].
+
+Dependabot can propose updates to action references, including SHA pins:
 
 ```yaml
 # .github/dependabot.yml
@@ -328,172 +365,41 @@ updates:
       interval: 'weekly'
 ```
 
-Dependabot updates workflow `uses:` references in `.github/workflows`, including commit SHAs for GitHub Actions. The
-trailing `# v2.0.0` comment is mainly for human review so maintainers can see which release a referenced SHA
-corresponds to.
-
-Use a release-specific tag such as `@v2.0.0` if you want a human-readable reference to a single published release. Use
-`@v1` only if you deliberately want the convenience of a moving major tag. For GitHub's model for combining fixed
-release tags with movable major tags, see
-[Using immutable releases and tags to manage your action's releases](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/using-immutable-releases-and-tags-to-manage-your-actions-releases).
-
-## Security & Trust
-
-- **Default token friendly** - `github-token` defaults to `${{ github.token }}`
-- **Minimal permissions** - the action only needs the permissions granted to the job that invokes it
-- **GitHub-aligned workflow security guidance** - GitHub recommends full commit SHAs for third-party actions in its
-  [Secure use reference](https://docs.github.com/en/actions/reference/security/secure-use)
-- **Immutable workflow references available** - prefer a full 40-character commit SHA for production workflows
-- **Signed release tags** - release tags are signed with the published project GPG key
-- **Published release signing key** - import [`keys/release-signing-key.asc`](keys/release-signing-key.asc) before
-  verifying a tag
-- **Release verification before publication** - draft releases are verified from
-  the signed tag before they are made public
-- **Moving major tag is explicit** - `@v1` is intentionally movable and should not be treated as an immutable
-  reference
-
-```yaml
-- uses: thekbb/terraform-plan-commenter-action@<full-commit-sha>
-  with:
-    init-args: '-lockfile=readonly'
-```
-
-If you prefer a release-specific tag in `uses:`, pin to the current release instead:
-
-```yaml
-- uses: thekbb/terraform-plan-commenter-action@v2.0.0
-  with:
-    init-args: '-lockfile=readonly'
-```
-
-## Trust Model & Limits
-
-This repo ships a
-[composite action](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action),
-with a checked-in `dist` runtime compiled from TypeScript. CI verifies that the
-generated runtime matches its source. The main thing to verify is the signed
-release tag that points at both the source and generated runtime you are using.
-From there, the user-visible trust story is:
-
-- pin to a full 40-character commit SHA if you want an immutable workflow
-  reference
-- verify the signed release tag if you want to confirm where that SHA came from
-- immutable GitHub releases make published release metadata harder to change
-  after the fact
-- runtime provenance binds each generated `dist/*.js` file to the release
-  workflow, version tag, and source commit on a GitHub-hosted runner
-- major tags such as `@v1` are convenience refs, not immutable ones
-
-Use this action when you already trust the Terraform code in the repo and you
-want the plan posted back to the PR for review.
-
-Do not use this action if:
-
-- your Terraform plan output may expose operational detail you do not want in
-  PR comments
-- you need provenance covering Terraform, providers, modules, or nested actions
-- you would need to rely on `pull_request_target` to handle untrusted fork PRs
-
-For fork PRs, stick with `pull_request`. Do not switch to `pull_request_target`
-just to get comment permissions for untrusted forks. Keep `init-args` and
-`plan-args` limited to trusted, repo-controlled values.
-
-Terraform can still include resource names, identifiers, diffs, counts, and
-other useful operational detail in plan output even when some values are marked
-sensitive. Review what your plans actually print before you turn PR commenting
-on in a stricter environment.
-
-`verify-release.sh` checks the signed release tag, source ancestry, immutable
-publication, and provenance for every generated runtime file. It does not prove
-anything about your repository settings outside Git or the safety of your
-Terraform configuration.
-
-## Release Process
-
-This repository uses a workflow-driven release flow while keeping release tags
-local and GPG-signed by the maintainer.
-
-Pushing a signed version tag starts one workflow with verification followed by
-publication. Both jobs require the documented tag signing key and verify the
-exact release-candidate merge commit against the GitHub signature policy. The
-verification job rebuilds and attests the reviewed runtime. The publication job
-independently verifies those attestations before creating its draft from the
-tagged changelog automatically.
-The signed major tag moves only after the version release has been published,
-verified, and confirmed immutable. Maintainer commands and recovery guidance
-live in [CONTRIBUTING.md](CONTRIBUTING.md#releases).
-
-This repository publishes a [composite action](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action).
-Its checked-in Node.js runtime is generated from TypeScript on Ubuntu, reviewed
-in the release-candidate PR, and rebuilt without changes before attestation.
-The signed tag authenticates the complete action commit; `build:check` checks
-that generated JavaScript matches its TypeScript source. Build provenance covers
-only `dist/*.js`, not `action.yml`, inline shell, Terraform, providers, modules,
-or nested actions. No separate JavaScript bundle or SBOM is published.
-
 ## Verify a Release
 
-Release tags in this repository are signed with the GPG key whose public half is included at
-[`keys/release-signing-key.asc`](keys/release-signing-key.asc).
-
-Fingerprint:
+Release tags are signed with the key in
+[`keys/release-signing-key.asc`](keys/release-signing-key.asc). Its fingerprint is:
 
 ```text
 353A AFB2 1CE8 1D84 3634 AD3E DE52 EEA6 AF0D 8779
 ```
 
-Use a trusted checkout of this verifier with Git, GPG, curl, Node.js 24, and a
-current authenticated GitHub CLI supporting `gh attestation verify` and its
-source/signer identity flags. No npm installation is needed for verification.
-To verify a published release, replace the version placeholder below:
+Use a trusted checkout of the verifier with Git, GPG, curl, Node.js 24, and an
+authenticated GitHub CLI that supports [attestation verification][gh-attestation].
+No npm installation is needed. Replace the version placeholder:
 
 ```bash
 ./verify-release.sh --tag vX.Y.Z
 ```
 
-That script checks the signed annotated tag, the tagged commit's reachability
-from `origin/main`, the published GitHub release's immutable state, and each
-runtime file's provenance using the same policy as publication. It uses the
-helper from your trusted checkout, not code from the fetched release.
+The script checks the signed annotated tag, the commit's reachability from
+`origin/main`, immutable publication, and provenance for every `dist/*.js`
+file. It uses the helper from your trusted checkout, not code from the fetched
+release. Verification by `--sha` also requires a version tag pointing at that
+commit. Releases without runtime attestations fail the provenance check.
 
-Releases predating runtime attestations will fail the provenance check. The
-verifier does not downgrade missing provenance to success; the manual commands
-below check only the signed tag. Verification by `--sha` also requires a version
-tag pointing at that commit so the attestation's source ref can be checked.
-
-If you prefer to verify the tag manually:
-
-```bash
-gpg --import keys/release-signing-key.asc
-gpg --show-keys --fingerprint keys/release-signing-key.asc
-git fetch origin --tags --force
-git verify-tag v2.0.0
-git rev-parse v2.0.0^{commit}
-```
-
-You can also verify that the release tag points to code that is on `main`:
-
-```bash
-git fetch origin main --tags --force
-git merge-base --is-ancestor "$(git rev-parse v2.0.0^{commit})" origin/main
-```
-
-If that command exits successfully, the release commit is reachable from
-`origin/main`.
-
-For an additional cross-check, you can confirm the same public key is published on `keys.openpgp.org` for
-`kevin@thekbb.net`:
-
-```bash
-gpg --keyserver hkps://keys.openpgp.org --search-keys kevin@thekbb.net
-```
-
-The fingerprint should still match exactly:
-
-```text
-353A AFB2 1CE8 1D84 3634 AD3E DE52 EEA6 AF0D 8779
-```
+The signed tag covers the complete action commit. Build provenance covers
+only generated `dist/*.js`, not `action.yml`, shell steps, Terraform, providers,
+modules, or nested actions. Neither proves your Terraform configuration is
+safe. See [SECURITY.md](SECURITY.md) for the verification policy and limits.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, generated runtime
+checks, and the [release procedure](CONTRIBUTING.md#releases).
+
+[fork-workflows]: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflows-in-forked-repositories
+[tf-workspace]: https://developer.hashicorp.com/terraform/cli/config/environment-variables#tf_workspace
+[secure-use]: https://docs.github.com/en/actions/reference/security/secure-use
+[immutable-releases]: https://docs.github.com/en/actions/how-tos/create-and-publish-actions/using-immutable-releases-and-tags-to-manage-your-actions-releases
+[gh-attestation]: https://cli.github.com/manual/gh_attestation_verify
