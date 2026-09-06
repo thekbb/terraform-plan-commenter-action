@@ -37,8 +37,9 @@ uses: thekbb/terraform-plan-commenter-action@<full-commit-sha>
 ## Trust Model & Limits
 
 This repo ships a composite action with a checked-in JavaScript runtime compiled
-from TypeScript. The release story is based on signed release tags, immutable
-GitHub releases, and consumer pinning to a full commit SHA.
+from TypeScript. The release story is based on signed release tags, generated
+runtime provenance, immutable GitHub releases, and consumer pinning to a full
+commit SHA.
 
 Use this action only if you are comfortable posting Terraform plan output back
 to GitHub as a PR comment.
@@ -46,7 +47,7 @@ to GitHub as a PR comment.
 Do not use this action if:
 
 - your plan output may reveal operational detail you do not want in PR comments
-- you need attestation for a generated release artifact
+- you need provenance covering Terraform, providers, modules, or nested actions
 - you would need to rely on `pull_request_target` for untrusted fork PRs
 
 For fork PRs, prefer `pull_request`, not `pull_request_target`. Do not switch
@@ -55,9 +56,25 @@ Keep `init-args` and `plan-args` limited to trusted, repo-controlled values.
 
 `verify-release.sh` checks that the release tag is signed, that it resolves to
 the expected commit on `main`, and that the published GitHub release is
-immutable. It does not prove anything about GitHub settings outside the repo,
-and it does not prove artifact provenance because this repository does not
-publish a built artifact.
+immutable. It also verifies provenance for every `dist/*.js` file from the
+release commit. It does not prove anything about GitHub settings outside the
+repo. Older releases without runtime attestations fail this check rather than
+receiving a reduced verification result marked as success.
+
+The release workflow rebuilds the runtime on Ubuntu and requires it to match
+the reviewed commit before generating GitHub SLSA build provenance. Both jobs
+independently verify every runtime file's digest and require the exact
+repository, `.github/workflows/release.yml` signer, workflow commit, version-tag
+source ref, and source commit. Verification requires GitHub's Actions OIDC
+issuer and rejects self-hosted runners. Attestation lookup failures are retried
+at most five times per file with two-second delays, then fail the release.
+
+The signed tag authenticates the complete composite-action commit.
+`build:check` verifies that committed JavaScript matches its TypeScript source.
+Provenance covers only generated `dist/*.js`; it does not cover `action.yml`,
+inline shell, Terraform, providers, modules, or nested actions. It is a build
+origin claim, not a guarantee that the source or its dependencies are safe.
+See [GitHub's attestation verification policy options](https://cli.github.com/manual/gh_attestation_verify).
 
 Both jobs in the tag-push release workflow additionally pin the tag signature to primary key
 `353AAFB21CE81D843634AD3EDE52EEA6AF0D8779`, using an isolated keyring. They require
@@ -67,13 +84,16 @@ GitHub's GraphQL evidence for the exact tagged commit: a valid `GpgSignature`,
 also confirm the commit is the merge result of the corresponding same-repository
 release-candidate PR into `main`. This commit check trusts GitHub's API,
 explicitly on `github.com`; it is not independent local signature verification.
-GitHub signing-key changes require reviewed policy updates in both action
-repositories, following the [key-rotation procedure](CONTRIBUTING.md#github-signing-key-rotation).
+GitHub signing-key changes require a reviewed policy update, following the
+[key-rotation procedure](CONTRIBUTING.md#github-signing-key-rotation).
 
 Publication depends directly on successful verification in the same workflow.
 It uses a job-scoped `GITHUB_TOKEN` with `contents: write`; verification has
-`contents: read`. Both have `pull-requests: read` for the release-candidate
-check. Both jobs compare the event SHA, checked-out SHA, current signed tag,
+`contents: read`. Verification also has `id-token: write` and
+`attestations: write` to generate provenance; publication has
+`attestations: read`. Both have `pull-requests: read` for the release-candidate
+check. Release preparation, verification, and publication disable dependency
+caching. Both jobs compare the event SHA, checked-out SHA, current signed tag,
 workflow ref and SHA, ancestry, workflow tree on `main`, and package metadata.
 The publication job alone creates or resumes a draft and publishes it.
 

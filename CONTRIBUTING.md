@@ -95,10 +95,12 @@ The normal release path is:
 3. Verify and tag the exact resulting merge commit using the commands below.
    Later commits on `main` do not change the release candidate's identity.
 4. Pushing the signed version tag automatically starts `Verify and Publish Release`
-   (`.github/workflows/release.yml`). Its read-scoped verification job checks the
-   release identity and runs the normal check suite. No draft needs to exist yet.
-5. The write-scoped publication job re-verifies the release, creates a draft
-   using the tagged changelog, publishes it, and confirms immutability.
+   (`.github/workflows/release.yml`). Verification checks the release identity,
+   runs the normal check suite, rebuilds the reviewed runtime without changes,
+   and generates and verifies its provenance. No draft needs to exist yet.
+5. The write-scoped publication job re-verifies the release and runtime
+   provenance, creates a draft using the tagged changelog, publishes it, and
+   confirms immutability.
 6. After publication succeeds and the release is confirmed immutable, move the
    signed major tag to the same release commit using an explicit push lease.
 
@@ -111,9 +113,37 @@ is used only to open release-candidate PRs that trigger normal CI.
 `release:check` validates metadata without writing files. `release:prepare`
 updates only `CHANGELOG.md`, `README.md`, `package.json`, and `package-lock.json`
 in the current directory; rerunning it for an already prepared version preserves
-the result. The workflow selects `main` and opens the release-candidate PR.
+the result. The workflow also builds `dist/*.js` on Ubuntu and includes those
+files in the release-candidate PR for review. It selects `main` and does not
+use dependency caching.
 Neither command runs Git. The old `npm run release` command is removed, and
 calling `scripts/release.mjs` without exactly one explicit mode fails.
+
+### Generated runtime provenance
+
+The release workflow attests all generated `dist/*.js` files after rebuilding
+them and checking that no tracked or untracked runtime changes remain. The
+attestation is stored through GitHub's attestation service; it is not a release
+asset or a new checked-in file. Publication does not install npm dependencies.
+
+`scripts/verify-provenance.ts` runs directly on Node.js 24 and uses GitHub CLI
+verification to require the artifact digest, repository, release workflow and
+workflow commit, version-tag source ref, source commit, GitHub Actions OIDC
+issuer, and GitHub-hosted runner. Both release jobs use this helper, as does
+`verify-release.sh` from the consumer's trusted checkout.
+
+Use a current authenticated GitHub CLI supporting the
+[attestation verification flags](https://cli.github.com/manual/gh_attestation_verify).
+All provenance requests target `github.com`, regardless of `GH_HOST`. Missing
+or mismatched attestations block publication; lookup failures receive five
+attempts per file with two-second delays for indexing propagation. A CLI launch
+failure or 15-second command timeout fails immediately. Resolve the cause and
+rerun the original release workflow; never skip provenance or move a version
+tag to recover. The major tag stays unchanged until publication succeeds.
+
+No local npm installation is needed to run the consumer verifier. Historical
+releases without these attestations fail its provenance check. The generated
+runtime is verified as data and is not executed by the consumer verifier.
 
 ### Release signature policy
 
@@ -151,8 +181,8 @@ replacement against [GitHub's published web-flow key](https://github.com/web-flo
 and the signature evidence for a known GitHub-created merge commit. Do not
 approve a key solely because it appeared in a failed release attempt.
 
-Update `GITHUB_SIGNING_KEY_ID` in `scripts/verify-release.ts`, the corresponding
-IAM policy, tests, and security documentation through reviewed PRs before
+Update `GITHUB_SIGNING_KEY_ID` in `scripts/verify-release.ts`, tests, and
+security documentation through a reviewed PR before
 retrying. Document the reason for the rotation and whether the old key remains
 trusted; any overlap must be an explicit reviewed policy change. Do not add an
 environment override, automatically learn keys, or fall back to committer

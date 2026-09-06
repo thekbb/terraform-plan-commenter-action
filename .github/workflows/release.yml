@@ -19,6 +19,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      id-token: write
+      attestations: write
     env:
       TAG: ${{ github.ref_name }}
       WORKFLOW_REF: ${{ github.workflow_ref }}
@@ -76,6 +78,22 @@ jobs:
       - name: Run release checks
         run: npm run check
 
+      - name: Rebuild and require the reviewed runtime
+        run: |
+          npm run build
+          git diff --exit-code -- dist
+          test -z "$(git status --porcelain --untracked-files=all -- dist)"
+
+      - name: Attest generated runtime
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: 'dist/*.js'
+
+      - name: Verify generated runtime provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/verify-provenance.ts "$GITHUB_REPOSITORY" "$TAG" "$GITHUB_SHA"
+
   publish:
     needs: verify
     runs-on: ubuntu-latest
@@ -83,6 +101,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: read
+      attestations: read
     env:
       TAG: ${{ github.ref_name }}
       WORKFLOW_REF: ${{ github.workflow_ref }}
@@ -135,6 +154,11 @@ jobs:
           releaseNotes(fs.readFileSync('CHANGELOG.md', 'utf8'), process.env.TAG);
           NODE
           echo "tag_object=$(git rev-parse "refs/tags/$TAG")" >> "$GITHUB_OUTPUT"
+
+      - name: Independently verify runtime provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/verify-provenance.ts "$GITHUB_REPOSITORY" "$TAG" "$GITHUB_SHA"
 
       - name: Create or resume release and confirm immutable publication
         env:

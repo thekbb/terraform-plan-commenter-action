@@ -315,6 +315,8 @@ From there, the user-visible trust story is:
 - verify the signed release tag if you want to confirm where that SHA came from
 - immutable GitHub releases make published release metadata harder to change
   after the fact
+- runtime provenance binds each generated `dist/*.js` file to the release
+  workflow, version tag, and source commit on a GitHub-hosted runner
 - major tags such as `@v1` are convenience refs, not immutable ones
 
 Use this action when you already trust the Terraform code in the repo and you
@@ -324,8 +326,7 @@ Do not use this action if:
 
 - your Terraform plan output may expose operational detail you do not want in
   PR comments
-- you need provenance for a generated build artifact rather than signed-source
-  release verification
+- you need provenance covering Terraform, providers, modules, or nested actions
 - you would need to rely on `pull_request_target` to handle untrusted fork PRs
 
 For fork PRs, stick with `pull_request`. Do not switch to `pull_request_target`
@@ -337,11 +338,10 @@ other useful operational detail in plan output even when some values are marked
 sensitive. Review what your plans actually print before you turn PR commenting
 on in a stricter environment.
 
-`verify-release.sh` is meant to answer a narrow question: "does this release
-tag point at signed source on `main`, and is the published GitHub release
-immutable?" It does not prove anything about your repository settings outside
-git, and it does not prove build-artifact provenance because this repo does not
-publish a built artifact.
+`verify-release.sh` checks the signed release tag, source ancestry, immutable
+publication, and provenance for every generated runtime file. It does not prove
+anything about your repository settings outside Git or the safety of your
+Terraform configuration.
 
 ## Release Process
 
@@ -351,15 +351,20 @@ local and GPG-signed by the maintainer.
 Pushing a signed version tag starts one workflow with verification followed by
 publication. Both jobs require the documented tag signing key and verify the
 exact release-candidate merge commit against the GitHub signature policy. The
-publication job creates its draft from the tagged changelog automatically.
+verification job rebuilds and attests the reviewed runtime. The publication job
+independently verifies those attestations before creating its draft from the
+tagged changelog automatically.
 The signed major tag moves only after the version release has been published,
 verified, and confirmed immutable. Maintainer commands and recovery guidance
 live in [CONTRIBUTING.md](CONTRIBUTING.md#releases).
 
 This repository publishes a [composite action](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action).
-Its checked-in Node.js runtime is generated from TypeScript and verified in CI.
-The release flow remains focused on signed tags and source-release integrity
-rather than separate artifact attestation.
+Its checked-in Node.js runtime is generated from TypeScript on Ubuntu, reviewed
+in the release-candidate PR, and rebuilt without changes before attestation.
+The signed tag authenticates the complete action commit; `build:check` checks
+that generated JavaScript matches its TypeScript source. Build provenance covers
+only `dist/*.js`, not `action.yml`, inline shell, Terraform, providers, modules,
+or nested actions. No separate JavaScript bundle or SBOM is published.
 
 ## Verify a Release
 
@@ -372,14 +377,24 @@ Fingerprint:
 353A AFB2 1CE8 1D84 3634 AD3E DE52 EEA6 AF0D 8779
 ```
 
-To verify a published release end to end:
+Use a trusted checkout of this verifier with Git, GPG, curl, Node.js 24, and a
+current authenticated GitHub CLI supporting `gh attestation verify` and its
+source/signer identity flags. No npm installation is needed for verification.
+To verify a published release, replace the version placeholder below:
 
 ```bash
-./verify-release.sh --tag v2.0.0
+./verify-release.sh --tag vX.Y.Z
 ```
 
 That script checks the signed annotated tag, the tagged commit's reachability
-from `origin/main`, and the published GitHub release's immutable state.
+from `origin/main`, the published GitHub release's immutable state, and each
+runtime file's provenance using the same policy as publication. It uses the
+helper from your trusted checkout, not code from the fetched release.
+
+Releases predating runtime attestations will fail the provenance check. The
+verifier does not downgrade missing provenance to success; the manual commands
+below check only the signed tag. Verification by `--sha` also requires a version
+tag pointing at that commit so the attestation's source ref can be checked.
 
 If you prefer to verify the tag manually:
 

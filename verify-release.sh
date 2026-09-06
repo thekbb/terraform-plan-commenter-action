@@ -26,6 +26,9 @@ Environment:
   GITHUB_REPOSITORY  Optional owner/repo override for release API checks
   GITHUB_API_URL     Optional GitHub API base URL override
   GITHUB_TOKEN       Optional token for private repos or higher API rate limits
+
+Runtime provenance requires Node.js 24 and a current authenticated GitHub CLI.
+Releases without runtime attestations fail provenance verification.
 EOF
 }
 
@@ -389,6 +392,24 @@ if [[ -n "$resolved_tag" ]]; then
 else
   emit_result SKIP 'Published GitHub release exists' 'no release tag available to query'
   emit_result SKIP 'GitHub release is immutable' 'no release tag available to query'
+fi
+
+# Run the helper from this trusted checkout, never code from the fetched release.
+# Restore only data files for hashing; the runtime is not executed locally.
+verifier_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -z "$resolved_tag" ]]; then
+  emit_result FAIL 'Generated runtime provenance' 'a version tag is required to verify the provenance source ref'
+elif ! resolve_github_repo || [[ "$github_host" != 'github.com' ]]; then
+  emit_result FAIL 'Generated runtime provenance' 'provenance verification requires a github.com repository'
+elif ! command -v node >/dev/null 2>&1 || ! command -v gh >/dev/null 2>&1; then
+  emit_result FAIL 'Generated runtime provenance' 'install Node.js 24 and a current authenticated GitHub CLI'
+elif ! git -C "$repo_dir" restore --source="$resolved_sha" --worktree -- dist; then
+  emit_result FAIL 'Generated runtime provenance' 'unable to restore runtime files from the release commit'
+elif node "$verifier_dir/scripts/verify-provenance.ts" \
+    "$github_owner/$github_repo" "$resolved_tag" "$resolved_sha" "$repo_dir"; then
+  emit_result PASS 'Generated runtime provenance' 'all dist/*.js files match the release workflow, tag, and commit'
+else
+  emit_result FAIL 'Generated runtime provenance' 'runtime attestations are missing, invalid, or do not match the release'
 fi
 
 if ((overall_failed)); then
