@@ -55,25 +55,27 @@ export default async function formatComment({ github, context, core, }) {
                 core.warning(`Found ${String(selected.matches)} owned comments for this plan; updating one deterministically and leaving the others untouched.`);
             }
             if (selected.comment) {
-                await github.rest.issues.updateComment({
+                const { data: comment } = await github.rest.issues.updateComment({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
                     comment_id: selected.comment.id,
                     body,
                 });
-                core.info(`${selected.migrated ? 'Migrated' : 'Updated'} comment ${String(selected.comment.id)} owned by ${author.login}.`);
+                core.info(`${selected.migrated ? 'Migrated' : 'Updated'} comment ${String(comment.id)} owned by ${author.login}: ${comment.html_url}`);
             }
             else {
-                await github.rest.issues.createComment({
+                const { data: comment } = await github.rest.issues.createComment({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
                     issue_number: context.issue.number,
                     body,
                 });
-                core.info(`Created plan comment owned by ${author.login}.`);
+                core.info(`Created comment ${String(comment.id)} owned by ${author.login}: ${comment.html_url}`);
             }
         };
         if (output.length > GITHUB_COMMENT_LIMIT) {
+            core.warning(`Rendered plan comment is ${String(output.length)} characters, exceeding the action's ` +
+                `${String(GITHUB_COMMENT_LIMIT)}-character limit; omitting full plan output from the comment.`);
             const githubServerUrl = process.env.GITHUB_SERVER_URL;
             const runUrl = githubServerUrl
                 ? `${githubServerUrl}/${context.repo.owner}/${context.repo.repo}` +

@@ -17,8 +17,12 @@ const baseContext = {
 
 const makeGithub = (overrides = {}) => {
   const listComments = vi.fn().mockResolvedValue({ data: [] });
-  const createComment = vi.fn().mockResolvedValue({});
-  const updateComment = vi.fn().mockResolvedValue({});
+  const createComment = vi.fn().mockResolvedValue({
+    data: { id: 101, html_url: 'https://github.com/thekbb/terraform-plan-commenter-action/pull/42#issuecomment-101' },
+  });
+  const updateComment = vi.fn().mockImplementation(({ comment_id }) => Promise.resolve({
+    data: { id: comment_id, html_url: `https://github.com/thekbb/terraform-plan-commenter-action/pull/42#issuecomment-${comment_id}` },
+  }));
 
   return {
     graphql: vi.fn().mockResolvedValue({ viewer: { databaseId: 1, login: 'github-actions[bot]' } }),
@@ -74,6 +78,10 @@ describe('format-comment action behavior', () => {
     expect(body).toContain(makeMarker('.', 'default'));
     expect(body).toContain('### Terraform Plan');
     expect(body).toContain('🟢 <strong>create</strong> <code>1</code>');
+    expect(core.info).toHaveBeenCalledWith(
+      'Created comment 101 owned by github-actions[bot]: https://github.com/thekbb/terraform-plan-commenter-action/pull/42#issuecomment-101'
+    );
+    expect(core.warning).not.toHaveBeenCalled();
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
@@ -221,6 +229,9 @@ describe('format-comment action behavior', () => {
       comment_id: 7,
       body: expect.stringContaining('### Terraform Plan'),
     });
+    expect(core.info).toHaveBeenCalledWith(
+      'Migrated comment 7 owned by github-actions[bot]: https://github.com/thekbb/terraform-plan-commenter-action/pull/42#issuecomment-7'
+    );
     expect(github.rest.issues.createComment).not.toHaveBeenCalled();
     expect(core.setFailed).not.toHaveBeenCalled();
   });
@@ -327,6 +338,9 @@ describe('format-comment action behavior', () => {
       comment_id: 55,
       body: expect.stringContaining('### Terraform Plan'),
     });
+    expect(core.info).toHaveBeenCalledWith(
+      'Updated comment 55 owned by github-actions[bot]: https://github.com/thekbb/terraform-plan-commenter-action/pull/42#issuecomment-55'
+    );
     expect(github.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
@@ -386,6 +400,14 @@ describe('format-comment action behavior', () => {
     );
     expect(body).not.toContain('```terraform');
     expect(body).not.toContain('State refresh');
+    expect(core.warning).toHaveBeenCalledOnce();
+    expect(core.warning).toHaveBeenCalledWith(expect.stringMatching(
+      /^Rendered plan comment is \d+ characters, exceeding the action's 65000-character limit; omitting full plan output from the comment\.$/
+    ));
+    expect(core.info).toHaveBeenCalledWith(expect.stringContaining('Created comment 101'));
+    const diagnostics = [...core.info.mock.calls, ...core.warning.mock.calls].flat().join('\n');
+    expect(diagnostics).not.toContain(process.env.PLAN);
+    expect(diagnostics).not.toContain(body);
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
@@ -421,6 +443,22 @@ describe('format-comment action behavior', () => {
     expect(body).not.toContain('<strong>');
     expect(body).not.toContain('✅ No changes');
     expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
+  it.each(['createComment', 'updateComment'])('does not log success when %s fails', async (operation) => {
+    const github = makeGithub();
+    if (operation === 'updateComment') {
+      github.rest.issues.listComments.mockResolvedValue({
+        data: [{ id: 7, user: { id: 1 }, body: makeMarker('.', 'default') }],
+      });
+    }
+    github.rest.issues[operation].mockRejectedValue(new Error('permission denied'));
+    const core = makeCore();
+
+    await formatComment({ github, context: baseContext, core });
+
+    expect(core.setFailed).toHaveBeenCalledWith('Failed to post PR comment: permission denied');
+    expect(core.info).not.toHaveBeenCalledWith(expect.stringMatching(/^(Created|Updated|Migrated) comment /));
   });
 
   it('reports API failures through core.setFailed', async () => {
