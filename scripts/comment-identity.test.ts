@@ -129,9 +129,11 @@ describe('authenticated comment ownership', () => {
       const listComments = vi.fn<Issues['listComments']>(() => Promise.resolve({ data: comments }));
       const createComment = vi.fn<Issues['createComment']>(({ body }) => {
         comments.push(owned(2, body));
-        return Promise.resolve({});
+        return Promise.resolve({ data: { id: 2, html_url: 'https://github.com/owner/repo/pull/5#issuecomment-2' } });
       });
-      const updateComment = vi.fn<Issues['updateComment']>(() => Promise.resolve({}));
+      const updateComment = vi.fn<Issues['updateComment']>(({ comment_id }) => Promise.resolve({
+        data: { id: comment_id, html_url: `https://github.com/owner/repo/pull/5#issuecomment-${String(comment_id)}` },
+      }));
       const graphql = vi.fn<FormatCommentOptions['github']['graphql']>(() => Promise.resolve({ viewer: { databaseId: 42, login } }));
       const warning = vi.fn<FormatCommentOptions['core']['warning']>();
       const setFailed = vi.fn<FormatCommentOptions['core']['setFailed']>();

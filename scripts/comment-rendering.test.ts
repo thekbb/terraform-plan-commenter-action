@@ -43,7 +43,9 @@ describe('posted comment rendering', () => {
     vi.stubEnv('SUMMARY_THEME', 'default');
     vi.stubEnv('COMMENT_NOTE', '**Trusted note**\n[Runbook](https://example.com/runbook)');
     type Issues = FormatCommentOptions['github']['rest']['issues'];
-    const createComment = vi.fn<Issues['createComment']>(() => Promise.resolve({}));
+    const createComment = vi.fn<Issues['createComment']>(() => Promise.resolve({
+      data: { id: 2, html_url: 'https://github.com/owner/repo/pull/5#issuecomment-2' },
+    }));
     const setFailed = vi.fn<FormatCommentOptions['core']['setFailed']>();
     await formatComment({
       github: {
@@ -51,7 +53,9 @@ describe('posted comment rendering', () => {
         rest: { issues: {
           listComments: () => Promise.resolve({ data: [] }),
           createComment,
-          updateComment: vi.fn<Issues['updateComment']>(() => Promise.resolve({})),
+          updateComment: vi.fn<Issues['updateComment']>(({ comment_id }) => Promise.resolve({
+            data: { id: comment_id, html_url: `https://github.com/owner/repo/pull/5#issuecomment-${String(comment_id)}` },
+          })),
         } },
       },
       context: { actor: 'actor', eventName: 'pull_request', issue: { number: 5 }, repo: { owner: 'owner', repo: 'repo' }, runId: 123 },

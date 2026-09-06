@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Log the ID and URL after creating, updating, or migrating a plan comment,
+  and warn with the rendered size when full plan output is omitted
 - Build reviewed release runtime files on Ubuntu and require verified provenance
   for every generated JavaScript file before publication and in the consumer verifier
 - Require GitHub signing-origin evidence and an approved GPG signing key for
