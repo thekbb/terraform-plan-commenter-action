@@ -70,6 +70,24 @@ describe('comment identity and migration', () => {
     expect(selectOwnedComment(comments, 42, commentIdentity('infra/prod')).comment).toBeUndefined();
   });
 
+  it('ignores ordinary comments and legacy comments with unusable directory headers', () => {
+    const comments = [
+      owned(1, 'Thanks, this plan looks good.'),
+      owned(2, '<!-- terraform-plan-comment:infra-prod:default -->\n### Terraform Plan\n\n📁 Directory removed\n\nPlan'),
+    ];
+    const selected = selectOwnedComment(comments, 42, commentIdentity('infra/prod'));
+    expect(selected.comment).toBeUndefined();
+    expect(selected.matches).toBe(0);
+  });
+
+  it('migrates an owned legacy root comment recorded with the ./ spelling', () => {
+    const comment = owned(1, '<!-- terraform-plan-comment:root:default -->\n### Terraform Plan\n\n📁 `./`\n\nPlan');
+    const selected = selectOwnedComment([comment], 42, commentIdentity('.'));
+    expect(selected.comment?.id).toBe(1);
+    expect(selected.migrated).toBe(true);
+    expect(selectOwnedComment([comment], 42, commentIdentity('root')).comment).toBeUndefined();
+  });
+
   it('distinguishes the repository root from a legacy comment for a directory named root', () => {
     const prefix = '<!-- terraform-plan-comment:root:default -->\n### Terraform Plan\n';
     const comments = [owned(1, `${prefix}\n📁 \`root\`\n\nPlan`), owned(2, `${prefix}\n\n<details>Plan`)];
@@ -91,6 +109,10 @@ describe('comment identity and migration', () => {
 });
 
 describe('authenticated comment ownership', () => {
+  it('rejects an identity response that omits the authenticated viewer', async () => {
+    await expect(authenticatedAuthor(() => Promise.resolve({}))).rejects.toThrow('authenticated comment author');
+  });
+
   it('requires usable authenticated identity evidence', async () => {
     await expect(authenticatedAuthor(() => Promise.resolve({ viewer: null }))).rejects.toThrow('authenticated comment author');
   });
