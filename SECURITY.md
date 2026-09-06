@@ -52,6 +52,13 @@ migration additionally requires the original header to identify the directory.
 Markers encode identity, not authorization: keep workflows using the same
 comment author and plan identity within the same trust boundary.
 
+Plan output uses a code fence longer than any backtick run in the displayed
+plan. Directory labels use safe inline-code delimiters and visible control
+character escapes. These rendering boundaries keep that text from changing
+the comment structure; they do not redact sensitive plan content.
+`COMMENT_NOTE` remains trusted workflow-controlled Markdown, not sanitized
+untrusted content.
+
 Do not use this action if:
 
 - your plan output may reveal operational detail you do not want in PR comments

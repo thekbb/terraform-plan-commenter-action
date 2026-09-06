@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { formatSummary, stripRefreshNoise, } from './helpers.js';
 import { authenticatedAuthor, commentIdentity, identityMarker, selectOwnedComment } from './comment-identity.js';
+import { formatDirectory, formatPlanBlock } from './comment-rendering.js';
 const GITHUB_COMMENT_LIMIT = 65000;
 const environmentValue = (name, fallback) => {
     const value = process.env[name];
@@ -23,7 +24,7 @@ export default async function formatComment({ github, context, core, }) {
         }
         const identity = commentIdentity(workingDir, workspace);
         const marker = identityMarker(identity);
-        const dirNote = workingDir !== '.' ? `\n📁 \`${workingDir}\`\n` : '';
+        const dirNote = workingDir !== '.' ? `\n📁 ${formatDirectory(workingDir)}\n` : '';
         const noteBlock = commentNote ? `\n${commentNote.trim()}\n` : '';
         const output = [
             marker,
@@ -32,9 +33,7 @@ export default async function formatComment({ github, context, core, }) {
             noteBlock,
             `<details><summary>${summary ? summary : 'Show Plan'}</summary>`,
             '',
-            '```terraform',
-            displayPlan,
-            '```',
+            formatPlanBlock(displayPlan),
             '',
             '</details>',
             '',

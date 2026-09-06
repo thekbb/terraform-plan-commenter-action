@@ -4,6 +4,7 @@ import {
   stripRefreshNoise,
 } from './helpers.js';
 import { authenticatedAuthor, commentIdentity, identityMarker, selectOwnedComment, type IssueComment } from './comment-identity.js';
+import { formatDirectory, formatPlanBlock } from './comment-rendering.js';
 
 interface RepoRef {
   readonly owner: string;
@@ -93,7 +94,7 @@ export default async function formatComment({
 
     const identity = commentIdentity(workingDir, workspace);
     const marker = identityMarker(identity);
-    const dirNote = workingDir !== '.' ? `\n📁 \`${workingDir}\`\n` : '';
+    const dirNote = workingDir !== '.' ? `\n📁 ${formatDirectory(workingDir)}\n` : '';
     const noteBlock = commentNote ? `\n${commentNote.trim()}\n` : '';
 
     const output = [
@@ -103,9 +104,7 @@ export default async function formatComment({
       noteBlock,
       `<details><summary>${summary ? summary : 'Show Plan'}</summary>`,
       '',
-      '```terraform',
-      displayPlan,
-      '```',
+      formatPlanBlock(displayPlan),
       '',
       '</details>',
       '',

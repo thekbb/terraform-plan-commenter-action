@@ -112,6 +112,16 @@ updates the lowest comment ID within that format, and warns about duplicates.
 Other comments are never deleted. Legacy migration support is limited to v2;
 future removal belongs in a major release.
 
+## Comment Rendering
+
+Plan output stays inside a Terraform code block, even when it contains
+backticks, HTML-like text, or mentions. Directory names use inline code with
+visible escapes for line breaks and control characters; literal backslashes
+are escaped too. These display changes do not change comment identity.
+
+`COMMENT_NOTE`, when set by the workflow, remains trusted Markdown. Do not
+populate it from untrusted pull-request content.
+
 ## Outputs
 
 | Output | Description |
