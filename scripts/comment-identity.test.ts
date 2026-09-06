@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { authenticatedAuthor, commentIdentity, makeMarker, selectOwnedComment, type IssueComment } from '../src/comment-identity.js';
+import { authenticatedAuthor, commentIdentity, identityMarker, makeMarker, selectOwnedComment, type IssueComment } from '../src/comment-identity.js';
 import formatComment, { type FormatCommentOptions } from '../src/format-comment.js';
 
 afterEach(() => { vi.unstubAllEnvs(); });
@@ -7,6 +7,32 @@ afterEach(() => { vi.unstubAllEnvs(); });
 const owned = (id: number, body: string): IssueComment => ({ id, user: { id: 42 }, body });
 
 describe('comment identity and migration', () => {
+  it('normalizes single-dot segments at every position without changing path roots', () => {
+    for (const directory of ['infra/./prod', 'infra/prod/.', './infra/./prod/./', 'infra//.//prod']) {
+      expect(makeMarker(directory)).toBe(makeMarker('infra/prod'));
+    }
+    expect(makeMarker('././.')).toBe(makeMarker('.'));
+    expect(makeMarker('/infra/./prod/.')).toBe(makeMarker('/infra/prod'));
+    expect(makeMarker('/./.')).toBe(makeMarker('/'));
+    expect(makeMarker('infra/../prod')).not.toBe(makeMarker('prod'));
+    expect(makeMarker('infra/.hidden')).not.toBe(makeMarker('infra/hidden'));
+    expect(makeMarker('infra/ . /prod')).not.toBe(makeMarker('infra/prod'));
+  });
+
+  it('migrates dot-segment spellings from both legacy and earlier hashed markers', () => {
+    const markers = [
+      '<!-- terraform-plan-comment:infra-.-prod-.:default -->',
+      identityMarker({ directory: 'infra/./prod/.', workspace: 'default' }),
+    ];
+    for (const marker of markers) {
+      const comment = owned(1, `${marker}\n### Terraform Plan\n\n📁 \`infra/./prod/.\`\n\nPlan`);
+      const selected = selectOwnedComment([comment], 42, commentIdentity('infra/prod'));
+      expect(selected.comment?.id).toBe(1);
+      expect(selected.migrated).toBe(true);
+      expect(selectOwnedComment([comment], 42, commentIdentity('infra-prod')).comment).toBeUndefined();
+    }
+  });
+
   it('separates formerly colliding directories, workspaces, and literal root paths', () => {
     expect(makeMarker('infra/prod')).not.toBe(makeMarker('infra-prod'));
     expect(makeMarker('.')).not.toBe(makeMarker('root'));

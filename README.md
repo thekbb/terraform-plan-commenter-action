@@ -92,13 +92,16 @@ If identity lookup fails, commenting fails rather than guessing an author.
 The token still needs permission to read and write PR comments.
 
 Each directory/workspace pair has a versioned, SHA-256-based marker. Equivalent
-spellings such as `infra/prod`, `./infra/prod/`, and `infra//prod` share an
+spellings such as `infra/prod`, `./infra/prod/`, `infra//prod`, `infra/./prod`,
+and `infra/prod/.` share an
 identity. `infra/prod` and `infra-prod` do not; neither do the repository root
 and a directory literally named `root`. Whitespace in directory names is
-preserved. Hashing safely encodes the identity; it does not hide directory names
+preserved. Parent (`..`) segments and symlink aliases are not collapsed.
+Hashing safely encodes the identity; it does not hide directory names
 already displayed in the comment or plan.
 
-During v2, existing comments with legacy markers can be upgraded in place only
+During v2, existing comments with legacy markers or earlier hashed dot-segment
+spellings can be upgraded in place only
 when the authenticated author matches and the original Terraform Plan header
 confirms the directory. Ambiguous or edited legacy headers are left untouched
 and a new comment is created. Switching token authors also creates a new

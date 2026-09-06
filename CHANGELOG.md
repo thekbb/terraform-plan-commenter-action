@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Normalize interior and trailing single-dot directory segments in comment
+  identities while preserving parent segments, with migration for older markers
 - Match PR comments to the authenticated token author, including PAT users,
   instead of accepting any bot comment
 - Use collision-resistant versioned directory/workspace markers, conservatively

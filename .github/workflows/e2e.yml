@@ -59,7 +59,7 @@ jobs:
             Automated end-to-end smoke test. This verifies the normal successful plan path and comment update behavior.
             Expected to persist on the pull request and be updated by later runs of this same test.
         with:
-          working-directory: ./${{ steps.fixture.outputs.fixture_dir }}/
+          working-directory: ./${{ steps.fixture.outputs.fixture_dir }}/./
           terraform-version: '1.14.3'
           github-token: ${{ github.token }}
 

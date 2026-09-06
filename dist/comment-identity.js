@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto';
 export const normalizeWorkingDirectory = (directory) => {
-    const normalized = directory.replace(/\/+/gu, '/').replace(/^(?:\.\/)+/u, '').replace(/\/$/u, '');
-    return normalized === '' ? (directory.startsWith('/') ? '/' : '.') : normalized;
+    // Remove only empty and single-dot segments. Resolving '..' lexically can
+    // change the target when an earlier segment is a symlink.
+    const segments = directory.split('/').filter((segment) => segment !== '' && segment !== '.');
+    const normalized = segments.join('/');
+    if (directory.startsWith('/'))
+        return `/${normalized}`;
+    return normalized === '' ? '.' : normalized;
 };
 export const commentIdentity = (directory = '.', workspace = 'default') => ({
     directory: normalizeWorkingDirectory(directory), workspace,
@@ -11,22 +16,34 @@ export const identityMarker = (identity) => {
     return `<!-- terraform-plan-comment:v2:${digest} -->`;
 };
 export const makeMarker = (directory = '.', workspace = 'default') => identityMarker(commentIdentity(directory, workspace));
-// During v2, migrate only comments whose original header disambiguates the
-// lossy legacy marker. Never search arbitrary plan/note text for identity.
-const matchesLegacyIdentity = (body, identity) => {
+// During v2, migrate older markers only when the original header disambiguates
+// the directory. Never search arbitrary plan/note text for identity.
+const matchesPreviousIdentity = (body, identity) => {
     if (/[<>\r\n]/u.test(identity.workspace))
         return false;
-    const legacyDirectory = normalizeWorkingDirectory(identity.directory.trim());
-    const legacyMarker = `<!-- terraform-plan-comment:${legacyDirectory === '.' ? 'root' : legacyDirectory.replace(/\//gu, '-')}:${identity.workspace} -->`;
-    const prefix = `${legacyMarker}\n### Terraform Plan\n`;
+    const firstLineEnd = body.indexOf('\n');
+    if (firstLineEnd < 0)
+        return false;
+    const marker = body.slice(0, firstLineEnd);
+    const prefix = `${marker}\n### Terraform Plan\n`;
     if (!body.startsWith(prefix))
         return false;
     const header = body.slice(prefix.length);
     const directoryHeader = /^\n📁 `([^`\r\n]+)`\n/u.exec(header);
-    if (directoryHeader?.[1] !== undefined) {
-        return normalizeWorkingDirectory(directoryHeader[1]) === identity.directory;
-    }
-    return identity.directory === '.' && header.startsWith('\n\n');
+    const directory = directoryHeader?.[1] ?? (header.startsWith('\n\n') ? '.' : undefined);
+    if (directory === undefined || normalizeWorkingDirectory(directory) !== identity.directory)
+        return false;
+    // Reproduce the old encodings from the recorded spelling, not the new
+    // canonical path, so comments with interior/trailing dots can migrate too.
+    const legacyDirectory = directory.trim().replace(/^\.\/+/, '').replace(/\/+/g, '/').replace(/\/+$/g, '');
+    const legacyValue = legacyDirectory === '' || legacyDirectory === '.' ? 'root' : legacyDirectory.replace(/\//g, '-');
+    const legacyMarker = `<!-- terraform-plan-comment:${legacyValue}:${identity.workspace} -->`;
+    const previousDirectory = directory.replace(/\/+/gu, '/').replace(/^(?:\.\/)+/u, '').replace(/\/$/u, '');
+    const previousMarker = identityMarker({
+        directory: previousDirectory === '' ? (directory.startsWith('/') ? '/' : '.') : previousDirectory,
+        workspace: identity.workspace,
+    });
+    return marker === legacyMarker || marker === previousMarker;
 };
 export const selectOwnedComment = (comments, authorId, identity) => {
     const marker = identityMarker(identity);
@@ -38,7 +55,7 @@ export const selectOwnedComment = (comments, authorId, identity) => {
         const body = comment.body.replace(/\r\n/gu, '\n');
         if (body === marker || body.startsWith(`${marker}\n`))
             current.push(comment);
-        else if (matchesLegacyIdentity(body, identity))
+        else if (matchesPreviousIdentity(body, identity))
             legacy.push(comment);
     }
     const candidates = current.length > 0 ? current : legacy;
