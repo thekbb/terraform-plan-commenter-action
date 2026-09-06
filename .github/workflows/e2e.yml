@@ -50,7 +50,7 @@ jobs:
           HAS_CHANGES: ${{ steps.first.outputs.has-changes }}
         run: bash scripts/e2e/assert-action-result.sh 2 true
 
-      - name: Run action twice to exercise comment update
+      - name: Run action twice with equivalent directory spelling
         if: github.event_name == 'pull_request'
         id: second
         uses: ./
@@ -59,7 +59,7 @@ jobs:
             Automated end-to-end smoke test. This verifies the normal successful plan path and comment update behavior.
             Expected to persist on the pull request and be updated by later runs of this same test.
         with:
-          working-directory: ${{ steps.fixture.outputs.fixture_dir }}
+          working-directory: ./${{ steps.fixture.outputs.fixture_dir }}/./
           terraform-version: '1.14.3'
           github-token: ${{ github.token }}
 

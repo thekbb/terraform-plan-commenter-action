@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import formatComment from '../src/format-comment.ts';
+import { makeMarker } from '../src/comment-identity.ts';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -20,6 +21,7 @@ const makeGithub = (overrides = {}) => {
   const updateComment = vi.fn().mockResolvedValue({});
 
   return {
+    graphql: vi.fn().mockResolvedValue({ viewer: { databaseId: 1, login: 'github-actions[bot]' } }),
     rest: {
       issues: {
         listComments,
@@ -33,6 +35,7 @@ const makeGithub = (overrides = {}) => {
 
 const makeCore = () => ({
   info: vi.fn(),
+  warning: vi.fn(),
   setFailed: vi.fn(),
 });
 
@@ -68,7 +71,7 @@ describe('format-comment action behavior', () => {
     expect(github.rest.issues.updateComment).not.toHaveBeenCalled();
 
     const [{ body }] = github.rest.issues.createComment.mock.calls[0];
-    expect(body).toContain('<!-- terraform-plan-comment:root:default -->');
+    expect(body).toContain(makeMarker('.', 'default'));
     expect(body).toContain('### Terraform Plan');
     expect(body).toContain('🟢 <strong>create</strong> <code>1</code>');
     expect(core.setFailed).not.toHaveBeenCalled();
@@ -105,7 +108,7 @@ describe('format-comment action behavior', () => {
 
     expect(github.rest.issues.createComment).toHaveBeenCalledTimes(1);
     const [{ body }] = github.rest.issues.createComment.mock.calls[0];
-    expect(body).toContain('<!-- terraform-plan-comment:root:default -->');
+    expect(body).toContain(makeMarker('.', 'default'));
     expect(body).toContain('<details><summary>✅ No changes</summary>');
     expect(body).toContain('No actionable Terraform plan output to display.');
     expect(body).not.toContain('📁 `');
@@ -162,8 +165,8 @@ describe('format-comment action behavior', () => {
       data: [
         {
           id: 7,
-          user: { type: 'Bot' },
-          body: '<!-- terraform-plan-comment:root:default -->\nold body',
+          user: { id: 1, type: 'Bot' },
+          body: '<!-- terraform-plan-comment:root:default -->\n### Terraform Plan\n\n\n<details>old body',
         },
       ],
     });
@@ -188,8 +191,8 @@ describe('format-comment action behavior', () => {
       data: [
         {
           id: 8,
-          user: { type: 'Bot' },
-          body: '<!-- terraform-plan-comment:terraform-infra:default -->\nold body',
+          user: { id: 1, type: 'Bot' },
+          body: '<!-- terraform-plan-comment:terraform-infra:default -->\n### Terraform Plan\n\n📁 `terraform-infra`\n\nold body',
         },
       ],
     });
@@ -202,7 +205,7 @@ describe('format-comment action behavior', () => {
       repo: 'terraform-plan-commenter-action',
       comment_id: 8,
       body: expect.stringContaining(
-        '<!-- terraform-plan-comment:terraform-infra:default -->'
+        makeMarker('terraform-infra', 'default')
       ),
     });
     expect(github.rest.issues.createComment).not.toHaveBeenCalled();
@@ -215,7 +218,7 @@ describe('format-comment action behavior', () => {
       data: [
         {
           id: 12,
-          user: { type: 'User' },
+          user: { id: 2, type: 'User' },
           body: '<!-- terraform-plan-comment:root:default -->\nhuman comment',
         },
       ],
@@ -228,7 +231,7 @@ describe('format-comment action behavior', () => {
     expect(github.rest.issues.createComment).toHaveBeenCalledTimes(1);
 
     const [{ body }] = github.rest.issues.createComment.mock.calls[0];
-    expect(body).toContain('<!-- terraform-plan-comment:root:default -->');
+    expect(body).toContain(makeMarker('.', 'default'));
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
@@ -238,7 +241,7 @@ describe('format-comment action behavior', () => {
       data: [
         {
           id: 21,
-          user: { type: 'Bot' },
+          user: { id: 1, type: 'Bot' },
           body: '<!-- terraform-plan-comment:infrastructure:default -->\nother bot comment',
         },
       ],
@@ -251,7 +254,7 @@ describe('format-comment action behavior', () => {
     expect(github.rest.issues.createComment).toHaveBeenCalledTimes(1);
 
     const [{ body }] = github.rest.issues.createComment.mock.calls[0];
-    expect(body).toContain('<!-- terraform-plan-comment:root:default -->');
+    expect(body).toContain(makeMarker('.', 'default'));
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
@@ -260,8 +263,8 @@ describe('format-comment action behavior', () => {
       paginate: vi.fn().mockResolvedValue([
         {
           id: 55,
-          user: { type: 'Bot' },
-          body: '<!-- terraform-plan-comment:root:default -->\npaginated body',
+          user: { id: 1, type: 'Bot' },
+          body: `${makeMarker('.', 'default')}\npaginated body`,
         },
       ]),
     });
@@ -293,7 +296,7 @@ describe('format-comment action behavior', () => {
       data: [
         {
           id: 9,
-          user: { type: 'Bot' },
+          user: { id: 1, type: 'Bot' },
           body: '<!-- terraform-plan-comment:root:default -->\nroot comment',
         },
       ],
@@ -306,7 +309,7 @@ describe('format-comment action behavior', () => {
     expect(github.rest.issues.createComment).toHaveBeenCalledTimes(1);
 
     const [{ body }] = github.rest.issues.createComment.mock.calls[0];
-    expect(body).toContain('<!-- terraform-plan-comment:infrastructure-prod:default -->');
+    expect(body).toContain(makeMarker('infrastructure/prod', 'default'));
     expect(body).toContain('📁 `infrastructure/prod`');
     expect(core.setFailed).not.toHaveBeenCalled();
   });

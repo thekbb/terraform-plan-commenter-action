@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Normalize interior and trailing single-dot directory segments in comment
+  identities while preserving parent segments, with migration for older markers
+- Match PR comments to the authenticated token author, including PAT users,
+  instead of accepting any bot comment
+- Use collision-resistant versioned directory/workspace markers, conservatively
+  migrate owned legacy comments, and warn about duplicates without deleting them
 - Parse the actual Terraform `Plan:` summary line when building the PR comment
   summary so unrelated resource content like `to add` does't prevent summary in comment
 - Normalize `working-directory` before building the PR comment identity marker so

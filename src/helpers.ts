@@ -176,22 +176,4 @@ export const stripRefreshNoise = (plan = ''): string => {
   return cleaned || 'No actionable Terraform plan output to display.';
 };
 
-const normalizeWorkingDirForMarker = (workingDir = '.'): string => {
-  const normalizedDir = workingDir
-    .trim()
-    .replace(/^\.\/+/, '')
-    .replace(/\/+/g, '/')
-    .replace(/\/+$/g, '');
-
-  return normalizedDir === '' || normalizedDir === '.'
-    ? 'root'
-    : normalizedDir;
-};
-
-export const makeMarker = (
-  workingDir = '.',
-  workspace = 'default'
-): string => {
-  const markerDir = normalizeWorkingDirForMarker(workingDir).replace(/\//g, '-');
-  return `<!-- terraform-plan-comment:${markerDir}:${workspace} -->`;
-};
+export { makeMarker } from './comment-identity.js';

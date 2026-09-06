@@ -16,7 +16,7 @@ inputs:
     required: false
     default: 'latest'
   github-token:
-    description: 'GitHub token for posting PR comments'
+    description: 'GitHub token for posting and updating comments owned by its authenticated author'
     required: false
     default: ${{ github.token }}
   setup-terraform:
