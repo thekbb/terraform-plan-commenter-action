@@ -1,15 +1,9 @@
 import fs from 'node:fs';
 import {
   formatSummary,
-  makeMarker,
   stripRefreshNoise,
 } from './helpers.js';
-
-interface IssueComment {
-  readonly id: number;
-  readonly user: { readonly type: string };
-  readonly body: string;
-}
+import { authenticatedAuthor, commentIdentity, identityMarker, selectOwnedComment, type IssueComment } from './comment-identity.js';
 
 interface RepoRef {
   readonly owner: string;
@@ -26,6 +20,7 @@ interface ActionContext {
 
 interface ActionCore {
   info(message: string): void;
+  warning(message: string): void;
   setFailed(message: string): void;
 }
 
@@ -36,6 +31,7 @@ interface ListCommentsParams {
 }
 
 interface GithubClient {
+  readonly graphql: (query: string) => Promise<unknown>;
   readonly rest: {
     readonly issues: {
       readonly listComments: (
@@ -95,7 +91,8 @@ export default async function formatComment({
       core.info('I love it when a plan comes together.');
     }
 
-    const marker = makeMarker(workingDir, workspace);
+    const identity = commentIdentity(workingDir, workspace);
+    const marker = identityMarker(identity);
     const dirNote = workingDir !== '.' ? `\n📁 \`${workingDir}\`\n` : '';
     const noteBlock = commentNote ? `\n${commentNote.trim()}\n` : '';
 
@@ -116,6 +113,7 @@ export default async function formatComment({
     ].join('\n');
 
     const postComment = async (body: string): Promise<void> => {
+      const author = await authenticatedAuthor((query) => github.graphql(query));
       const listCommentsParams: ListCommentsParams = {
         owner: context.repo.owner,
         repo: context.repo.repo,
@@ -128,17 +126,19 @@ export default async function formatComment({
         )
         : (await github.rest.issues.listComments(listCommentsParams)).data;
 
-      const botComment = comments.find((comment) =>
-        comment.user.type === 'Bot' && comment.body.includes(marker)
-      );
+      const selected = selectOwnedComment(comments, author.id, identity);
+      if (selected.matches > 1) {
+        core.warning(`Found ${String(selected.matches)} owned comments for this plan; updating one deterministically and leaving the others untouched.`);
+      }
 
-      if (botComment) {
+      if (selected.comment) {
         await github.rest.issues.updateComment({
           owner: context.repo.owner,
           repo: context.repo.repo,
-          comment_id: botComment.id,
+          comment_id: selected.comment.id,
           body,
         });
+        core.info(`${selected.migrated ? 'Migrated' : 'Updated'} comment ${String(selected.comment.id)} owned by ${author.login}.`);
       } else {
         await github.rest.issues.createComment({
           owner: context.repo.owner,
@@ -146,6 +146,7 @@ export default async function formatComment({
           issue_number: context.issue.number,
           body,
         });
+        core.info(`Created plan comment owned by ${author.login}.`);
       }
     };
 

@@ -112,7 +112,8 @@ for (const expectation of expectations) {
   const excludes = normalizeStringArray(expectation.excludes, 'excludes');
 
   const matches = comments.filter((comment) =>
-    comment.user?.type === 'Bot' && typeof comment.body === 'string' && comment.body.includes(marker)
+    comment.user?.login === 'github-actions[bot]' && typeof comment.body === 'string' &&
+    (comment.body === marker || comment.body.startsWith(`${marker}\n`))
   );
 
   if (matches.length !== expectedCount) {

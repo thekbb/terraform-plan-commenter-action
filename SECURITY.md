@@ -44,6 +44,14 @@ commit SHA.
 Use this action only if you are comfortable posting Terraform plan output back
 to GitHub as a PR comment.
 
+Comment updates require the supplied token's authenticated author ID and an
+exact leading directory/workspace marker. A `Bot` account type or the workflow
+actor's identity is not sufficient. Failed author lookup stops commenting;
+comments owned by other users or applications are not adopted. Legacy marker
+migration additionally requires the original header to identify the directory.
+Markers encode identity, not authorization: keep workflows using the same
+comment author and plan identity within the same trust boundary.
+
 Do not use this action if:
 
 - your plan output may reveal operational detail you do not want in PR comments

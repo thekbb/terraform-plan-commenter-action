@@ -82,6 +82,33 @@ That is the recommended starting point:
 
 Use `init-args` and `plan-args` only for trusted, repo-controlled values.
 
+## Comment Ownership and Identity
+
+The supplied token determines the comment author, not the person who triggered
+the workflow. The default `GITHUB_TOKEN`, personal access tokens, and GitHub App
+installation tokens use GitHub's authenticated identity lookup. The action only
+updates comments with that author's numeric ID and a matching leading marker.
+If identity lookup fails, commenting fails rather than guessing an author.
+The token still needs permission to read and write PR comments.
+
+Each directory/workspace pair has a versioned, SHA-256-based marker. Equivalent
+spellings such as `infra/prod`, `./infra/prod/`, and `infra//prod` share an
+identity. `infra/prod` and `infra-prod` do not; neither do the repository root
+and a directory literally named `root`. Whitespace in directory names is
+preserved. Hashing safely encodes the identity; it does not hide directory names
+already displayed in the comment or plan.
+
+During v2, existing comments with legacy markers can be upgraded in place only
+when the authenticated author matches and the original Terraform Plan header
+confirms the directory. Ambiguous or edited legacy headers are left untouched
+and a new comment is created. Switching token authors also creates a new
+comment; comments belonging to the previous author are not adopted.
+
+If multiple owned comments match, the action prefers the new marker format,
+updates the lowest comment ID within that format, and warns about duplicates.
+Other comments are never deleted. Legacy migration support is limited to v2;
+future removal belongs in a major release.
+
 ## Outputs
 
 | Output | Description |
@@ -111,6 +138,21 @@ concurrency:
   group: terraform
   cancel-in-progress: false
 ```
+
+For independent plans, serialize comment updates by PR, working directory, and
+workspace. For example, on a job whose matrix defines `directory` and
+`workspace`:
+
+```yaml
+concurrency:
+  group: plan-${{ github.event.pull_request.number }}-${{ matrix.directory }}-${{ matrix.workspace }}
+  cancel-in-progress: false
+```
+
+Use the same group across workflows that update the same plan comment. This
+reduces creation races but does not merge existing duplicates. Keep any broader
+serialization needed to protect a shared Terraform state; PR-scoped concurrency
+does not replace state locking.
 
 ### Specific Terraform Version
 

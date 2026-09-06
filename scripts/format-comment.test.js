@@ -369,21 +369,16 @@ describe('makeMarker', () => {
     const marker1 = makeMarker('.', 'default');
     const marker2 = makeMarker('infrastructure', 'default');
     expect(marker1).not.toBe(marker2);
-    expect(marker1).toBe('<!-- terraform-plan-comment:root:default -->');
-    expect(marker2).toBe('<!-- terraform-plan-comment:infrastructure:default -->');
   });
 
   it('generates unique markers for different workspaces', () => {
     const marker1 = makeMarker('.', 'default');
     const marker2 = makeMarker('.', 'staging');
     expect(marker1).not.toBe(marker2);
-    expect(marker1).toBe('<!-- terraform-plan-comment:root:default -->');
-    expect(marker2).toBe('<!-- terraform-plan-comment:root:staging -->');
   });
 
-  it('normalizes directory paths', () => {
-    const marker = makeMarker('infra/terraform/prod', 'default');
-    expect(marker).toBe('<!-- terraform-plan-comment:infra-terraform-prod:default -->');
+  it('does not collapse directory separators into hyphens', () => {
+    expect(makeMarker('infra/terraform/prod', 'default')).not.toBe(makeMarker('infra-terraform-prod', 'default'));
   });
 
   it('normalizes equivalent working directory spellings to the same marker', () => {
@@ -392,19 +387,18 @@ describe('makeMarker', () => {
       './terraform-infra',
       'terraform-infra/',
       './terraform-infra/',
-      '  ./terraform-infra//  ',
     ];
 
     for (const workingDir of equivalentWorkingDirs) {
       expect(makeMarker(workingDir, 'default')).toBe(
-        '<!-- terraform-plan-comment:terraform-infra:default -->'
+        makeMarker('terraform-infra', 'default')
       );
     }
   });
 
   it('normalizes repeated slashes before building the marker', () => {
     expect(makeMarker('infra//terraform///prod', 'default')).toBe(
-      '<!-- terraform-plan-comment:infra-terraform-prod:default -->'
+      makeMarker('infra/terraform/prod', 'default')
     );
   });
 
@@ -413,18 +407,17 @@ describe('makeMarker', () => {
       '.',
       './',
       './/',
-      '  .//  ',
     ];
 
     for (const workingDir of rootWorkingDirs) {
       expect(makeMarker(workingDir, 'default')).toBe(
-        '<!-- terraform-plan-comment:root:default -->'
+        makeMarker('.', 'default')
       );
     }
   });
 
   it('returns valid HTML comment', () => {
     const marker = makeMarker('.', 'default');
-    expect(marker).toMatch(/^<!--.*-->$/);
+    expect(marker).toMatch(/^<!-- terraform-plan-comment:v2:[a-f0-9]{64} -->$/);
   });
 });
