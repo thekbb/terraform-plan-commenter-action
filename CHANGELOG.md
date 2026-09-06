@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject invalid setup and summary-theme inputs before Terraform runs, and
+  reject missing or invalid recorded exit codes before posting comments
 - Keep plan backticks from closing the code block, and safely display directory
   names containing backticks or control characters in full and oversized comments
 - Normalize interior and trailing single-dot directory segments in comment

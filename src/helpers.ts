@@ -118,7 +118,7 @@ export const parsePlanSummary = (
   return { kind: 'counts', counts };
 };
 
-const isSummaryTheme = (theme: string): theme is SummaryTheme =>
+export const isSummaryTheme = (theme: string): theme is SummaryTheme =>
   Object.prototype.hasOwnProperty.call(THEMES, theme);
 
 export const renderPlanSummary = (

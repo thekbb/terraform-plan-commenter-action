@@ -82,6 +82,12 @@ That is the recommended starting point:
 
 Use `init-args` and `plan-args` only for trusted, repo-controlled values.
 
+Inputs are validated before Terraform setup or initialization. `setup-terraform`
+accepts only `true` or `false`; `summary-theme` accepts only `default`,
+`colorblind`, or `minimal`. Values are case-sensitive and are not trimmed.
+Omitted or empty values use the documented defaults; other values fail with
+an input-specific error instead of silently skipping setup or changing themes.
+
 ## Comment Ownership and Identity
 
 The supplied token determines the comment author, not the person who triggered
@@ -135,6 +141,10 @@ file, output capture, or unexpected Terraform exit failures stop the action
 without posting a comment or reporting a valid `plan-exit-code`.
 Check the action's outcome as well as its outputs: `has-changes: false` does not
 mean the plan succeeded.
+
+Commenting requires an explicit recorded exit code of `0`, `1`, or `2`.
+A missing or malformed code fails before reading the plan or contacting GitHub;
+it is never treated as a successful no-change plan.
 
 ## Examples
 

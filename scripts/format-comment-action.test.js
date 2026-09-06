@@ -97,7 +97,7 @@ describe('format-comment action behavior', () => {
   it('uses default env values when optional inputs are missing', async () => {
     delete process.env.PLAN;
     delete process.env.PLAN_FILE;
-    delete process.env.PLAN_EXIT_CODE;
+    process.env.PLAN_EXIT_CODE = '0';
     delete process.env.WORKING_DIR;
     delete process.env.TF_WORKSPACE;
     delete process.env.SUMMARY_THEME;
@@ -113,6 +113,47 @@ describe('format-comment action behavior', () => {
     expect(body).toContain('No actionable Terraform plan output to display.');
     expect(body).not.toContain('📁 `');
     expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: 'PLAN_EXIT_CODE', value: undefined },
+    { name: 'PLAN_EXIT_CODE', value: '' },
+    { name: 'PLAN_EXIT_CODE', value: '3' },
+    { name: 'SUMMARY_THEME', value: 'colourblind' },
+  ])('rejects invalid $name before reading the plan or contacting GitHub ($value)', async ({ name, value }) => {
+    // This suite replaces process.env, so mutate that object rather than Vitest's cached environment.
+    if (value === undefined) Reflect.deleteProperty(process.env, name);
+    else process.env[name] = value;
+    process.env.PLAN_FILE = '/nonexistent/terraform-plan-comment-validation-test';
+    const github = makeGithub();
+    const core = makeCore();
+
+    await formatComment({ github, context: baseContext, core });
+
+    expect(core.setFailed).toHaveBeenCalledOnce();
+    expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining(
+      name === 'PLAN_EXIT_CODE' ? 'Missing or invalid PLAN_EXIT_CODE' : 'Invalid summary-theme input'
+    ));
+    expect(github.graphql).not.toHaveBeenCalled();
+    expect(github.rest.issues.listComments).not.toHaveBeenCalled();
+    expect(github.rest.issues.createComment).not.toHaveBeenCalled();
+    expect(github.rest.issues.updateComment).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { exitCode: '0', expected: '✅ No changes' },
+    { exitCode: '1', expected: '❌ Plan failed' },
+    { exitCode: '2', expected: '🟢 <strong>create</strong>' },
+  ])('preserves comment behavior for valid exit code $exitCode', async ({ exitCode, expected }) => {
+    process.env.PLAN_EXIT_CODE = exitCode;
+    const github = makeGithub();
+    const core = makeCore();
+
+    await formatComment({ github, context: baseContext, core });
+
+    expect(core.setFailed).not.toHaveBeenCalled();
+    expect(github.rest.issues.createComment).toHaveBeenCalledOnce();
+    expect(github.rest.issues.createComment.mock.calls[0][0].body).toContain(expected);
   });
 
   it('reads plan output from PLAN_FILE when provided', async () => {
