@@ -36,10 +36,11 @@ export const verifyRuntimeProvenance = async (input: Provenance): Promise<void> 
       'attestation', 'verify', file,
       '--hostname', 'github.com',
       '--repo', repository,
-      '--signer-workflow', `${repository}/.github/workflows/release.yml`,
       '--signer-digest', sha,
       '--source-ref', `refs/tags/${tag}`,
       '--source-digest', sha,
+      // The exact certificate identity pins both workflow and tag. gh rejects
+      // combining it with --signer-workflow (or other identity selectors).
       '--cert-identity', `https://github.com/${repository}/.github/workflows/release.yml@refs/tags/${tag}`,
       '--cert-oidc-issuer', 'https://token.actions.githubusercontent.com',
       '--deny-self-hosted-runners',
@@ -56,6 +57,13 @@ export const verifyRuntimeProvenance = async (input: Provenance): Promise<void> 
         throw new ProvenanceError('Could not run gh attestation verify within 15 seconds; check GitHub CLI installation and connectivity');
       }
       if (result.status === 0) break;
+      if (result.stderr.includes('unknown flag:') || result.stderr.includes('unknown shorthand flag:') ||
+          (result.stderr.includes('if any flags in the group [') &&
+           result.stderr.includes('are set none of the others can be'))) {
+        throw new ProvenanceError(
+          'GitHub CLI rejected the provenance verification arguments; check for conflicting flags or update gh to support the required options'
+        );
+      }
       if (attempt === 5) {
         throw new ProvenanceError(
           `Provenance verification failed for dist/${path.basename(file)} after 5 attempts (gh exit ${String(result.status)}); ` +

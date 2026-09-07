@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Remove conflicting GitHub CLI flags that blocked release provenance verification
+- Report unsupported or conflicting verification flags without retrying or logging
+  raw CLI output
+
 ## [2.1.0] - 2026-09-07
 
 ### Changed

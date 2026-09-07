@@ -45,7 +45,6 @@ describe('generated runtime provenance', () => {
       expect(spawn.mock.calls[index]?.slice(0, 2)).toEqual(['gh', [
         'attestation', 'verify', path.join(root, 'dist', name),
         '--hostname', 'github.com', '--repo', repository,
-        '--signer-workflow', `${repository}/.github/workflows/release.yml`,
         '--signer-digest', sha, '--source-ref', `refs/tags/${tag}`, '--source-digest', sha,
         '--cert-identity', `https://github.com/${repository}/.github/workflows/release.yml@refs/tags/${tag}`,
         '--cert-oidc-issuer', 'https://token.actions.githubusercontent.com',
