@@ -115,3 +115,11 @@ The publication job alone creates or resumes a draft and publishes it.
 The signed major tag is updated only after verified immutable publication, with
 an explicit push lease protecting against concurrent changes. See the
 [release procedure and signature policy](CONTRIBUTING.md#releases).
+
+The local `npm run release` command guides preparation, review, signing, and
+verification. It checks both origin URLs, the exact candidate merge commit,
+signatures, ancestry, workflow files, and release metadata before pushing a
+version tag. After the hosted workflow succeeds, it runs the consumer verifier
+and requires immutable publication before a leased major-tag update. Workflow
+run titles are used to find runs to watch, not as signing or publication
+authorization. The command never creates drafts or publishes releases locally.

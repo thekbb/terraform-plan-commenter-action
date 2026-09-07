@@ -17,6 +17,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "lint:md": "markdownlint '**/*.md' --ignore node_modules",
+    "release": "node scripts/release-cli.ts",
     "release:check": "node scripts/release.mjs --check",
     "release:prepare": "node scripts/release.mjs --prepare"
   },

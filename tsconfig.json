@@ -11,6 +11,7 @@
     "noFallthroughCasesInSwitch": true,
     "noEmit": true,
     "noImplicitOverride": true,
+    "rewriteRelativeImportExtensions": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "strict": true,

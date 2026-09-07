@@ -77,33 +77,61 @@ expected to be updated by later runs of the same scenario.
 
 ## Releases
 
-Use the workflow-driven release flow from a clean `main` checkout. Local release
-verification requires Node.js 24, Git, GnuPG, and an authenticated GitHub CLI.
+Run the release command from a clean `main` checkout. It requires Node.js 24,
+Git, GnuPG with the documented signing key, Bash, curl, and an authenticated
+GitHub CLI. Both fetch and push URLs for `origin` must point to this repository
+on `github.com`.
 
 Before you start, make sure `main` already contains any changelog, code, or
 documentation changes you want in the release.
 
-To sanity-check the next release version locally:
+Start a release with a version number, without the leading `v`:
 
 ```bash
-npm run release:check -- 1.2.0
+npm run release -- 2.1.0
 ```
 
-The normal release path is:
+The command checks local prerequisites, dispatches `Prepare Release` on `main`,
+watches that exact run, and prints the release-candidate PR link. If the PR is
+already open, it reuses it. Review and merge the PR yourself, then press Enter
+to continue. The command does not commit changes or merge the PR for you.
 
-1. Run the `Prepare Release` workflow, which always prepares the release from `main`, with the target version.
-2. Review and merge the generated `release-candidate/vX.Y.Z` pull request.
-3. Verify and tag the exact resulting merge commit using the commands below.
-   Later commits on `main` do not change the release candidate's identity.
-4. Pushing the signed version tag automatically starts `Verify and Publish Release`
-   (`.github/workflows/release.yml`). Verification checks the release identity,
-   runs the normal check suite, rebuilds the reviewed runtime without changes,
-   and generates and verifies its provenance. No draft needs to exist yet.
-5. The write-scoped publication job re-verifies the release and runtime
-   provenance, creates a draft using the tagged changelog, publishes it, and
-   confirms immutability.
-6. After publication succeeds and the release is confirmed immutable, move the
-   signed major tag to the same release commit using an explicit push lease.
+If you close the terminal, or run without an interactive terminal, resume after
+merging:
+
+```bash
+npm run release -- 2.1.0 --continue
+```
+
+Continuation rechecks the clean checkout and fast-forwards local `main`. It
+resolves the exact candidate merge commit, verifies its signature and release
+metadata, then creates and pushes the signed version tag. Later commits on
+`main` do not change which commit gets tagged.
+
+The tag push starts `Verify and Publish Release`. The command watches it,
+runs the consumer verifier, confirms immutable publication, then signs and
+pushes the major tag with an explicit lease. It never creates a draft or
+publishes a release locally.
+
+Matching existing version tags can be reused; conflicting tags are never
+overwritten. An existing signed major tag at the same commit needs no update.
+The command refuses to move a major tag backward in commit ancestry or
+overwrite one changed by another release while it was waiting.
+
+If a hosted run fails, inspect it and rerun the original run when the failure
+is recoverable, then use `--continue`. A run-discovery or watch timeout also
+leaves remote work running; check GitHub Actions before retrying. Code or
+workflow fixes require a new release version, not moving the version tag.
+
+Untracked files count as a dirty checkout. Commit them, move them out of the
+checkout, or locally exclude files that are intentionally not part of the repo.
+The command does not stash, delete, or commit them.
+
+For metadata validation without starting a release:
+
+```bash
+npm run release:check -- 2.1.0
+```
 
 Enable GitHub release immutability in repository settings before releasing.
 Pushing a signed version tag is the publication authorization; there is no
@@ -117,8 +145,10 @@ in the current directory; rerunning it for an already prepared version preserves
 the result. The workflow also builds `dist/*.js` on Ubuntu and includes those
 files in the release-candidate PR for review. It selects `main` and does not
 use dependency caching.
-Neither command runs Git. The old `npm run release` command is removed, and
-calling `scripts/release.mjs` without exactly one explicit mode fails.
+Neither metadata command runs Git. `npm run release` is the separate operator
+command in `scripts/release-cli.ts`; it guides the workflow and signed-tag
+operations above. Calling `scripts/release.mjs` without exactly one explicit
+metadata mode still fails.
 
 ### Generated runtime provenance
 
@@ -191,6 +221,9 @@ identity. If a version tag already exists and its verifier needs changing,
 prepare a new release version rather than moving that tag.
 
 ### Create the version tag
+
+The release command handles this step. These commands are available for manual
+operation using the same verification policy.
 
 Run this Bash block from the reviewed repository checkout, replacing the tag
 and PR number placeholders. It selects the merged PR's commit, not `HEAD`.

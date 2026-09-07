@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Add a guided `npm run release -- VERSION` command with review pause and
+  `--continue` recovery, reusing the existing signing and publication checks
 - Reorganize the README around setup and troubleshooting, pin Terraform in
   examples, and document Linux runner support
 - Log the ID and URL after creating, updating, or migrating a plan comment,

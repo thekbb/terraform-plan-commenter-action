@@ -1,4 +1,5 @@
 name: Prepare Release
+run-name: Prepare v${{ inputs.version }} ${{ inputs.request-id }}
 
 on:
   workflow_dispatch:
@@ -7,6 +8,15 @@ on:
         description: 'Release version, for example 2.0.0'
         required: true
         type: string
+      request-id:
+        description: 'Optional correlation ID supplied by the release command'
+        required: false
+        default: ''
+        type: string
+
+concurrency:
+  group: prepare-release-${{ inputs.version }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
