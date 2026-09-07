@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-09-07
+
 ### Changed
 
 - Add a guided `npm run release -- VERSION` command with review pause and
@@ -156,7 +158,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graceful handling of large plans with truncation
 - Comprehensive test coverage
 
-[Unreleased]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.2.2...v2.0.0
 [1.2.2]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/thekbb/terraform-plan-commenter-action/compare/v1.2.0...v1.2.1

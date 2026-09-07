@@ -136,7 +136,7 @@ for third-party actions in production; see [Update Strategy](#update-strategy).
 ### Subdirectory / Monorepo
 
 ```yaml
-- uses: thekbb/terraform-plan-commenter-action@v2.0.0
+- uses: thekbb/terraform-plan-commenter-action@v2.1.0
   with:
     terraform-version: '1.14.3'
     working-directory: 'infrastructure/'
@@ -146,7 +146,7 @@ for third-party actions in production; see [Update Strategy](#update-strategy).
 ### Var Files
 
 ```yaml
-- uses: thekbb/terraform-plan-commenter-action@v2.0.0
+- uses: thekbb/terraform-plan-commenter-action@v2.1.0
   with:
     terraform-version: '1.14.3'
     init-args: '-lockfile=readonly'
@@ -165,7 +165,7 @@ itself.
     terraform_version: '1.14.3'
     terraform_wrapper: false
 
-- uses: thekbb/terraform-plan-commenter-action@v2.0.0
+- uses: thekbb/terraform-plan-commenter-action@v2.1.0
   with:
     setup-terraform: 'false'
     init-args: '-lockfile=readonly'
@@ -176,7 +176,7 @@ Skipping setup does not skip `terraform init`.
 ### Colorblind-Friendly Theme
 
 ```yaml
-- uses: thekbb/terraform-plan-commenter-action@v2.0.0
+- uses: thekbb/terraform-plan-commenter-action@v2.1.0
   with:
     terraform-version: '1.14.3'
     init-args: '-lockfile=readonly'
@@ -201,7 +201,7 @@ uses it during initialization and planning. This selects a workspace; it does
 not create one. See [Terraform's `TF_WORKSPACE` documentation][tf-workspace].
 
 ```yaml
-- uses: thekbb/terraform-plan-commenter-action@v2.0.0
+- uses: thekbb/terraform-plan-commenter-action@v2.1.0
   env:
     TF_WORKSPACE: staging
   with:
@@ -240,7 +240,7 @@ plan:
         role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/terraform-${{ matrix.workspace }}
         aws-region: us-east-2
 
-    - uses: thekbb/terraform-plan-commenter-action@v2.0.0
+    - uses: thekbb/terraform-plan-commenter-action@v2.1.0
       env:
         TF_WORKSPACE: ${{ matrix.workspace }}
       with:
