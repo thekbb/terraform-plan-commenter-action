@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Stop release preparation early when `RELEASE_PREP_PAT` is missing instead of
+  falling back to a read-only token
+
 ## [2.1.1] - 2026-09-07
 
 ### Fixed

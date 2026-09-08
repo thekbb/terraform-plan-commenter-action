@@ -137,7 +137,10 @@ Enable GitHub release immutability in repository settings before releasing.
 Pushing a signed version tag is the publication authorization; there is no
 separate manual dispatch or draft-creation step. Major tags do not trigger this
 workflow. Both jobs use scoped `GITHUB_TOKEN` permissions. `RELEASE_PREP_PAT`
-is used only to open release-candidate PRs that trigger normal CI.
+is a required repository secret, used only to push release-candidate branches
+and open PRs that trigger normal CI. Preparation stops before checkout or builds
+if the secret is missing; there is no fallback to `GITHUB_TOKEN`. This check
+only confirms the secret is set, not that the token is valid or has access.
 
 `release:check` validates metadata without writing files. `release:prepare`
 updates only `CHANGELOG.md`, `README.md`, `package.json`, and `package-lock.json`
